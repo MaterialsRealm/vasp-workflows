@@ -7,7 +7,7 @@ import click
 import numpy as np
 import yaml
 
-from vasp_snake.force import parse_forces_and_check_zero
+from .force import parse_forces_and_check_zero
 
 __all__ = ["classify_folders", "write_status_report"]
 
