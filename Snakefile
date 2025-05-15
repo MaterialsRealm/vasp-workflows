@@ -1,52 +1,98 @@
 import os
-from glob import glob
-from pymatgen.io.vasp import Oszicar
+import numpy as np
 import shutil
+import yaml
+import json
 
-# Threshold for convergence
-threshold = 0.001
+# Configurable filename
+report_file = config.get("report_file", "report_status.yaml")
+report_ext = os.path.splitext(report_file)[1].lower()
+
+assert report_ext in [
+    ".yaml",
+    ".yml",
+    ".json",
+], "report_file must end with .yaml, .yml, or .json"
+
+
+def parse_forces_and_check_zero(filename):
+    with open(filename, "r") as f:
+        lines = f.readlines()
+
+    results = []
+    i = 0
+    while i < len(lines):
+        if "POSITION" in lines[i] and "TOTAL-FORCE" in lines[i]:
+            start = i + 2
+            end = start
+            while end < len(lines) and "total drift" not in lines[end]:
+                end += 1
+
+            forces = []
+            for line in lines[start:end]:
+                if line.strip() == "" or "---" in line:
+                    continue
+                parts = line.split()
+                force = list(map(float, parts[3:6]))
+                forces.append(force)
+
+            forces = np.array(forces)
+            forces_sum = np.sum(forces, axis=0)
+
+            match = np.allclose(forces_sum, [0.0, 0.0, 0.0], atol=1e-6)
+
+            results.append((forces_sum, match))
+
+            i = end + 1
+        else:
+            i += 1
+
+    return results
+
+
+def classify_folders():
+    """Classify folders into not_run, not_converged, good."""
+    not_run = []
+    not_converged = []
+    good = []
+
+    for folder in next(os.walk("."))[1]:
+        if folder.startswith("."):
+            continue
+        outcar_path = os.path.join(folder, "OUTCAR")
+
+        if not os.path.exists(outcar_path):
+            not_run.append(folder)
+        else:
+            try:
+                force_checks = parse_forces_and_check_zero(outcar_path)
+                if not force_checks:
+                    not_converged.append(folder)
+                else:
+                    last_forces_sum, match = force_checks[-1]
+                    if not match:
+                        not_converged.append(folder)
+                    else:
+                        good.append(folder)
+            except Exception as e:
+                print(
+                    f"{folder}: Error parsing OUTCAR ({e}), treating as not converged."
+                )
+                not_converged.append(folder)
+
+    return not_run, not_converged, good
 
 
 def find_folders():
-    """Find folders needing rerun, skipping .snakemake and other system dirs."""
-    folders = []
-    for folder in next(os.walk("."))[1]:
-        if folder.startswith("."):
-            continue  # Skip .snakemake, .venv, etc.
-        outcar_path = os.path.join(folder, "OUTCAR")
-        oszicar_path = os.path.join(folder, "OSZICAR")
-
-        rerun = False
-        if not os.path.exists(outcar_path):
-            print(f"{folder}: OUTCAR missing, needs rerun.")
-            rerun = True
-        elif os.path.exists(oszicar_path):
-            try:
-                osz = Oszicar(oszicar_path)
-                if not osz.ionic_steps:
-                    raise ValueError("No ionic steps")
-                last_step = osz.ionic_steps[-1]
-                dE = last_step["dE"]
-                if abs(dE) >= threshold:
-                    print(f"{folder}: |dE|={abs(dE)} >= {threshold}, needs rerun.")
-                    rerun = True
-                else:
-                    print(f"{folder}: |dE|={abs(dE)} < {threshold}, OK.")
-            except Exception as e:
-                print(f"{folder}: OSZICAR read error ({e}), needs rerun.")
-                rerun = True
-        else:
-            print(f"{folder}: No OSZICAR, needs rerun.")
-            rerun = True
-
-        if rerun:
-            folders.append(folder)
-    return folders
+    """Return folders that need rerun (not_run + not_converged)."""
+    not_run, not_converged, _ = classify_folders()
+    return not_run + not_converged
 
 
 rule all:
     input:
         expand("{folder}/done.txt", folder=find_folders()),
+        report_file,
 
 
 rule link_and_run:
@@ -83,3 +129,28 @@ rule clean:
                     else:
                         os.remove(file_to_delete)
         print(f"Finished cleaning {len(folders)} folders.")
+
+
+rule report_status:
+    output:
+        report_file,
+    run:
+        not_run, not_converged, good = classify_folders()
+
+        report_data = {
+            "not_run": sorted(not_run),
+            "not_converged": sorted(not_converged),
+            "finished": sorted(good),
+        }
+
+        if report_ext in [".yaml", ".yml"]:
+            with open(output[0], "w") as f:
+                yaml.dump(report_data, f, default_flow_style=False)
+        elif report_ext == ".json":
+            with open(output[0], "w") as f:
+                json.dump(report_data, f, indent=4)
+
+        print(f"\nReport generated: {output[0]}")
+        print(f"  {len(not_run)} folders not run.")
+        print(f"  {len(not_converged)} folders not converged.")
+        print(f"  {len(good)} folders finished successfully.")
