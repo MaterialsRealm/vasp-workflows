@@ -8,7 +8,7 @@ try:
 except ImportError:
     yaml = None
 
-from ..src.force import parse_forces_and_check_zero
+from .force import parse_forces_and_check_zero
 
 
 @click.command()
