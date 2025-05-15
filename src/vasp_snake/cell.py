@@ -30,6 +30,6 @@ def count_elements(filename):
     poscar = Poscar.from_file(filename)
     atomic_numbers = poscar.structure.atomic_numbers
     # Convert atomic numbers to element symbols
-    symbols = [Element.from_Z(z).symbol for z in atomic_numbers]
+    symbols = [Element.from_Z(z) for z in atomic_numbers]
     counts = dict(Counter(symbols))
     return counts
