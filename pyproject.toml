@@ -1,0 +1,10 @@
+[project]
+name = "vasp-snakemake"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "pymatgen>=2025.5.2",
+    "snakemake>=9.3.4",
+]
