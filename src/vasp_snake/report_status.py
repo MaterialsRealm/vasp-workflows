@@ -1,5 +1,8 @@
 import json
 import os
+from enum import Enum
+
+import numpy as np
 
 try:
     import yaml
@@ -11,7 +14,13 @@ from vasp_snake.force import parse_forces_and_check_zero
 __all__ = ["classify_folders", "write_status_report"]
 
 
-def classify_folders(root="."):
+class JobStatus(Enum):
+    PENDING = "PENDING"
+    DONE = "DONE"
+    NOT_CONVERGED = "NOT_CONVERGED"
+
+
+def classify_folders(root=".", atol=1e-6):
     status = {}
     for folder in sorted(os.listdir(root)):
         folder_path = os.path.join(root, folder)
@@ -19,24 +28,32 @@ def classify_folders(root="."):
             continue
         outcar = os.path.join(folder_path, "OUTCAR")
         if not os.path.exists(outcar):
-            status[folder] = {"status": "not_run", "reason": "OUTCAR missing"}
+            forces_sum = [np.nan] * 3
+            job_status = JobStatus.PENDING
+            reason = "OUTCAR missing"
         else:
-            forces_sum, close = parse_forces_and_check_zero(outcar)
-            if close is None:
-                status[folder] = {
-                    "status": "not_converged",
-                    "reason": "No force block found",
-                }
-            elif close:
-                status[folder] = {
-                    "status": "done",
-                    "forces_sum": [float(f) for f in forces_sum],
-                }
+            forces_sum, is_converged = parse_forces_and_check_zero(outcar, atol=atol)
+            if forces_sum is None:
+                forces_sum = [np.nan] * 3
+                job_status = JobStatus.NOT_CONVERGED
+                reason = "No force block found"
+            elif is_converged:
+                job_status = JobStatus.DONE
+                reason = "Forces converged"
             else:
-                status[folder] = {
-                    "status": "not_converged",
-                    "forces_sum": [float(f) for f in forces_sum],
-                }
+                job_status = JobStatus.NOT_CONVERGED
+                reason = (
+                    f"Force sum norm {np.linalg.norm(forces_sum):.3g} >= atol {atol}"
+                )
+            forces_sum = [
+                float(f)
+                for f in (forces_sum if forces_sum is not None else [np.nan] * 3)
+            ]
+        status[folder] = {
+            "status": job_status.value,
+            "forces_sum": forces_sum,
+            "reason": reason,
+        }
     return status
 
 
@@ -67,8 +84,15 @@ if __name__ == "__main__":
     )
     @click.option("--output", default=None, help="Output file name (optional)")
     @click.option("--folders", default=".", help="Root directory containing folders")
-    def main(out_format, output, folders):
-        status = classify_folders(folders)
+    @click.option(
+        "--atol",
+        default=1e-6,
+        type=float,
+        show_default=True,
+        help="Convergence tolerance for force sum norm",
+    )
+    def main(out_format, output, folders, atol):
+        status = classify_folders(folders, atol=atol)
         if output is None:
             output = f"vasp_status.{out_format}"
         write_status_report(status, output, out_format)

@@ -4,12 +4,12 @@ import numpy as np
 __all__ = ["parse_forces_and_check_zero"]
 
 
-def parse_forces_and_check_zero(filename):
+def parse_forces_and_check_zero(filename, atol=1e-6):
     with open(filename, "r") as f:
         lines = f.readlines()
 
     last_forces_sum = None
-    last_forces_close = None
+    last_is_converged = None
 
     i = 0
     while i < len(lines):
@@ -29,14 +29,15 @@ def parse_forces_and_check_zero(filename):
 
             forces = np.array(forces)
             forces_sum = np.sum(forces, axis=0)
-            match = np.allclose(forces_sum, [0.0, 0.0, 0.0], atol=1e-6)
+            is_converged = np.linalg.norm(forces_sum) < atol
 
             last_forces_sum = forces_sum
-            last_forces_close = match
-
+            last_is_converged = is_converged
             i = end + 1
         else:
             i += 1
 
-    # If we found no force block, treat as not converged
-    return last_forces_sum, last_forces_close
+    # None if never found any block
+    if last_forces_sum is None:
+        return None, None
+    return last_forces_sum, last_is_converged
