@@ -1,15 +1,26 @@
-from pymatgen.io.vasp import Outcar
+from pymatgen.io.vasp import Oszicar, Outcar
 
-__all__ = ["parse_total_magnetization", "parse_last_total_magnetization"]
+__all__ = ["MagnetizationParser"]
 
 
-def parse_total_magnetization(file):
-    try:
-        outcar = Outcar(file)
-        data = outcar.magnetization
-        if not data:
+class MagnetizationParser:
+    @staticmethod
+    def from_outcar(file):
+        try:
+            outcar = Outcar(file)
+            data = outcar.magnetization
+            if not data:
+                return None
+            return sum(datum["tot"] for datum in data)
+        except Exception:
             return None
-        # Sum the "tot" field for all atoms
-        return sum(datum["tot"] for datum in data)
-    except Exception:
-        return None
+
+    @staticmethod
+    def from_oszicar(file):
+        try:
+            oszicar = Oszicar(file)
+            last_step = oszicar.ionic_steps[-1]
+            mag = last_step.get("mag", None)
+            return mag
+        except Exception:
+            return None
