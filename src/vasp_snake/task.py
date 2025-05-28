@@ -1,6 +1,6 @@
 import os
 from collections import Counter
-from enum import Enum
+from enum import StrEnum
 
 import numpy as np
 
@@ -9,7 +9,7 @@ from .force import parse_forces_and_check_zero
 __all__ = ["JobStatus", "FolderClassifier"]
 
 
-class JobStatus(Enum):
+class JobStatus(StrEnum):
     PENDING = "PENDING"
     DONE = "DONE"
     NOT_CONVERGED = "NOT_CONVERGED"
