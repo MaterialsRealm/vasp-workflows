@@ -6,7 +6,7 @@ import pandas as pd
 
 from .cell import count_elements, get_volume
 from .magnetization import MagnetizationParser
-from .report_status import JobStatus, classify_folders
+from .report import FolderClassifier, JobStatus
 
 __all__ = ["InfoCollector"]
 
@@ -18,11 +18,11 @@ class InfoCollector:
         self.structure_info = None
 
     def collect(self):
-        status_dict = classify_folders(root=self.root, atol=self.atol)["details"]
+        status_dict = FolderClassifier.from_directory(self.root, self.atol).details
         structure_info = {}
 
         for folder, info in status_dict.items():
-            if info["status"] == JobStatus.DONE.value:
+            if info["status"] == JobStatus.DONE:
                 contcar_path = os.path.join(self.root, folder, "CONTCAR")
                 abs_path = os.path.abspath(contcar_path)
                 outcar_path = os.path.join(self.root, folder, "OUTCAR")
