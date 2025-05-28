@@ -20,5 +20,9 @@ project_excludes = [
 
 [dependency-groups]
 dev = [
+    "directory-tree>=1.0.0",
+    "icecream>=2.1.4",
     "ipython>=9.2.0",
+    "rich>=14.0.0",
+    "see>=1.4.1",
 ]
