@@ -131,20 +131,29 @@ class FolderClassifier:
             k for k, v in self.details.items() if v["status"] == JobStatus.NOT_CONVERGED
         ]
 
-    def dumps_status(self, format="json"):
+    def dumps_status(self, format="json", key_by="folder"):
         """
-        Dump the folder status (only folder name and status) in JSON or YAML format as a string.
+        Dump the folder status in JSON or YAML format as a string.
 
         Args:
             format (str): Output format, either 'json' or 'yaml'. Defaults to 'json'.
+            key_by (str): 'folder' (default) for {folder: status}, or 'status' for {status: [folders]}.
 
         Returns:
-            str: The folder-to-status mapping serialized in the requested format.
+            str: The mapping serialized in the requested format.
 
         Raises:
-            ValueError: If the format is not 'json' or 'yaml'.
+            ValueError: If the format is not 'json' or 'yaml', or key_by is invalid.
         """
-        status_map = {k: v["status"] for k, v in self.details.items()}
+        if key_by == "folder":
+            status_map = {k: v["status"] for k, v in self.details.items()}
+        elif key_by == "status":
+            status_map = {}
+            for k, v in self.details.items():
+                status = v["status"]
+                status_map.setdefault(status, []).append(k)
+        else:
+            raise ValueError("key_by must be 'folder' or 'status'.")
         if format == "json":
             return json.dumps(status_map, indent=2)
         elif format == "yaml":
