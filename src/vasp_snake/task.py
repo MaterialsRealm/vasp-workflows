@@ -1,8 +1,10 @@
+import json
 import os
 from collections import Counter
 from enum import StrEnum
 
 import numpy as np
+import yaml
 
 from .force import parse_forces_and_check_zero
 
@@ -128,3 +130,24 @@ class FolderClassifier:
         return [
             k for k, v in self.details.items() if v["status"] == JobStatus.NOT_CONVERGED
         ]
+
+    def dumps_status(self, format="json"):
+        """
+        Dump the folder status (only folder name and status) in JSON or YAML format as a string.
+
+        Args:
+            format (str): Output format, either 'json' or 'yaml'. Defaults to 'json'.
+
+        Returns:
+            str: The folder-to-status mapping serialized in the requested format.
+
+        Raises:
+            ValueError: If the format is not 'json' or 'yaml'.
+        """
+        status_map = {k: v["status"] for k, v in self.details.items()}
+        if format == "json":
+            return json.dumps(status_map, indent=2)
+        elif format == "yaml":
+            return yaml.dump(status_map, sort_keys=False)
+        else:
+            raise ValueError("Format must be 'json' or 'yaml'.")
