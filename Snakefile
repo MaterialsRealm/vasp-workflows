@@ -4,6 +4,7 @@ import shutil
 import yaml
 import json
 
+from vasp_snake.collect_info import ResultCollector
 from vasp_snake.force import parse_forces_and_check_zero
 from vasp_snake.report import FolderClassifier
 
@@ -79,3 +80,15 @@ rule report_status:
         report_data = fc.dumps_status("json")
         with open(output[0], "w") as f:
             json.dump(report_data, f, indent=4)
+
+
+rule collect_info:
+    input:
+        expand("{folder}/done.txt", folder=find_folders()),
+    output:
+        "structure_info.csv",
+    run:
+        rc = ResultCollector(".")
+        rc.collect()
+        df = rc.to_dataframe()
+        df.to_csv(output[0])
