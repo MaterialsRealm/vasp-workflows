@@ -10,3 +10,8 @@ dependencies = [
     "pyyaml>=6",
     "snakemake>=9",
 ]
+
+[dependency-groups]
+dev = [
+    "ipython>=9.2.0",
+]
