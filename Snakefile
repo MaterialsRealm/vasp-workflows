@@ -41,14 +41,18 @@ rule link:
 
 rule run:
     input:
-        lambda wildcards: [f"{folder}/POSCAR" for folder in find_folders()],
+        poscar="{folder}/POSCAR",
+        linked="{folder}/.linked",
     output:
-        expand("{folder}/done.txt", folder=find_folders()),
-    run:
-        folders = find_folders()
-        for folder in folders:
-            print(f"Submitting job in {folder} ...")
-            os.system(f"cd {folder} && sbatch run.sh && touch done.txt")
+        done="{folder}/done.txt",
+    params:
+        folder="{folder}",
+    shell:
+        """
+        cd {params.folder}
+        sbatch run.sh
+        touch done.txt
+        """
 
 
 rule clean:
