@@ -91,6 +91,7 @@ class ResultCollector:
         if self.structure_info is None:
             raise ValueError("You must run collect() before converting to DataFrame.")
         df = pd.DataFrame.from_dict(self.structure_info, orient="index")
+        df = df.reset_index().rename(columns={"index": "index"})
         # Expand composition dictionary into columns
         composition_df = (
             df["composition"]
