@@ -11,6 +11,12 @@ dependencies = [
     "pyyaml>=6",
     "snakemake>=9",
 ]
+[tool.pyrefly]
+project_includes = ["**/*"]
+project_excludes = [
+    "**/.[!/.]*",
+    "**/*venv/**/*",
+]
 
 [dependency-groups]
 dev = [
