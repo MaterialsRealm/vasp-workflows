@@ -160,3 +160,12 @@ class FolderClassifier:
             return yaml.dump(status_map, sort_keys=False)
         else:
             raise ValueError("Format must be 'json' or 'yaml'.")
+
+    def to_rerun(self):
+        """
+        Generate a list of folders that need to be rerun based on their status.
+
+        Returns:
+            list: Folder names that are either PENDING or NOT_CONVERGED.
+        """
+        return self.list_pending() + self.list_incomplete()
