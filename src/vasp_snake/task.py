@@ -69,3 +69,14 @@ class FolderClassifier:
     @property
     def details(self):
         return self._details
+
+    def list_pending(self):
+        return [k for k, v in self.details.items() if v["status"] == JobStatus.PENDING]
+
+    def list_done(self):
+        return [k for k, v in self.details.items() if v["status"] == JobStatus.DONE]
+
+    def list_incomplete(self):
+        return [
+            k for k, v in self.details.items() if v["status"] == JobStatus.NOT_CONVERGED
+        ]
