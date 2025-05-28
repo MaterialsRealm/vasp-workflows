@@ -10,17 +10,35 @@ __all__ = ["JobStatus", "FolderClassifier"]
 
 
 class JobStatus(StrEnum):
+    """Enumeration of possible job statuses for VASP calculations."""
+
     PENDING = "PENDING"
     DONE = "DONE"
     NOT_CONVERGED = "NOT_CONVERGED"
 
 
 class FolderClassifier:
+    """Classifies VASP calculation folders by job status and provides summary and filtering utilities."""
+
     def __init__(self, details):
+        """
+        Args:
+            details (dict): Dictionary mapping folder names to job status details.
+        """
         self._details = details
 
     @classmethod
     def from_directory(cls, root=".", atol=1e-6):
+        """
+        Scan a directory for VASP calculation folders and classify their job status.
+
+        Args:
+            root (str): Root directory to scan. Defaults to current directory.
+            atol (float): Absolute tolerance for force convergence. Defaults to 1e-6.
+
+        Returns:
+            FolderClassifier: An instance with details populated from the directory.
+        """
         details = {}
         for folder in sorted(os.listdir(root)):
             folder_path = os.path.join(root, folder)
@@ -58,6 +76,12 @@ class FolderClassifier:
 
     @property
     def summary(self):
+        """
+        Compute the fraction of jobs in each status.
+
+        Returns:
+            dict: Mapping of job status to fraction of jobs in that status.
+        """
         status_list = [v["status"] for v in self._details.values()]
         total = len(status_list)
         counter = Counter(status_list)
@@ -68,15 +92,39 @@ class FolderClassifier:
 
     @property
     def details(self):
+        """
+        Get the raw details dictionary.
+
+        Returns:
+            dict: Folder details with job status, force sum, and reason.
+        """
         return self._details
 
     def list_pending(self):
+        """
+        List folders with PENDING status.
+
+        Returns:
+            list: Folder names with status PENDING.
+        """
         return [k for k, v in self.details.items() if v["status"] == JobStatus.PENDING]
 
     def list_done(self):
+        """
+        List folders with DONE status.
+
+        Returns:
+            list: Folder names with status DONE.
+        """
         return [k for k, v in self.details.items() if v["status"] == JobStatus.DONE]
 
     def list_incomplete(self):
+        """
+        List folders with NOT_CONVERGED status.
+
+        Returns:
+            list: Folder names with status NOT_CONVERGED.
+        """
         return [
             k for k, v in self.details.items() if v["status"] == JobStatus.NOT_CONVERGED
         ]
