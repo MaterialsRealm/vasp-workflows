@@ -8,10 +8,10 @@ from .cell import count_elements, get_volume
 from .magnetization import MagnetizationParser
 from .report_status import JobStatus, classify_folders
 
-__all__ = ["StructureInfoCollector"]
+__all__ = ["InfoCollector"]
 
 
-class StructureInfoCollector:
+class InfoCollector:
     def __init__(self, root=".", atol=1e-6):
         self.root = root
         self.atol = atol
