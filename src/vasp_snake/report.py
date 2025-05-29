@@ -131,7 +131,7 @@ class FolderClassifier:
             k for k, v in self.details.items() if v["status"] == JobStatus.NOT_CONVERGED
         ]
 
-    def dump_status(self, filename="status.yaml", key_by="folder"):
+    def dump_status(self, filename="status.yaml", key_by="status"):
         """
         Dump the folder status to a JSON or YAML file, format determined by file extension.
 
