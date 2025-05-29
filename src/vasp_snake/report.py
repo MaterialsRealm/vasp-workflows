@@ -131,19 +131,16 @@ class FolderClassifier:
             k for k, v in self.details.items() if v["status"] == JobStatus.NOT_CONVERGED
         ]
 
-    def dumps_status(self, format="json", key_by="folder"):
+    def dump_status(self, filename="status.yaml", key_by="folder"):
         """
-        Dump the folder status in JSON or YAML format as a string.
+        Dump the folder status to a JSON or YAML file, format determined by file extension.
 
         Args:
-            format (str): Output format, either 'json' or 'yaml'. Defaults to 'json'.
+            filename (str): Output filename. Format is determined by extension (.json, .yaml, .yml).
             key_by (str): 'folder' (default) for {folder: status}, or 'status' for {status: [folders]}.
 
-        Returns:
-            str: The mapping serialized in the requested format.
-
         Raises:
-            ValueError: If the format is not 'json' or 'yaml', or key_by is invalid.
+            ValueError: If the file extension is not supported, or key_by is invalid.
         """
         if key_by == "folder":
             status_map = {k: v["status"] for k, v in self.details.items()}
@@ -154,12 +151,17 @@ class FolderClassifier:
                 status_map.setdefault(status, []).append(k)
         else:
             raise ValueError("key_by must be 'folder' or 'status'.")
-        if format == "json":
-            return json.dumps(status_map, indent=2)
-        elif format == "yaml":
-            return yaml.dump(status_map, sort_keys=False)
+        ext = os.path.splitext(filename)[1].lower()
+        if ext == ".json":
+            with open(filename, "w") as f:
+                json.dump(status_map, f, indent=2)
+        elif ext in (".yaml", ".yml"):
+            with open(filename, "w") as f:
+                yaml.dump(status_map, f, sort_keys=False)
         else:
-            raise ValueError("Format must be 'json' or 'yaml'.")
+            raise ValueError(
+                "Unsupported file extension: {}. Use .json, .yaml, or .yml".format(ext)
+            )
 
     def to_rerun(self):
         """
