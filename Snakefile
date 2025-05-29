@@ -75,11 +75,7 @@ rule report_status:
     output:
         "report_status.json",
     run:
-        # Use FolderClassifier API for reporting
-        fc = FolderClassifier.from_directory(".")
-        report_data = fc.dumps_status("json")
-        with open(output[0], "w") as f:
-            json.dump(report_data, f, indent=4)
+        FolderClassifier.from_directory(".").dump_status()
 
 
 rule collect_info:
