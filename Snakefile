@@ -7,7 +7,7 @@ import json
 from vasp_snake.collect_info import ResultCollector
 from vasp_snake.force import parse_forces_and_check_zero
 from vasp_snake.report import FolderClassifier
-from vasp_snake.restart import update_poscar_from_contcar
+from vasp_snake.restart import mv_contcar_to_poscar
 
 
 def find_folders():
@@ -50,8 +50,8 @@ rule run:
     params:
         folder="{folder}",
     run:
-        update_poscar_from_contcar(".")
-        shell(  # See https://stackoverflow.com/a/62687409/3260253
+        mv_contcar_to_poscar(params.folder)
+        shell(
             f"""
             cd {params.folder}
             sbatch run.sh
