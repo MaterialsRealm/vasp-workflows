@@ -53,10 +53,9 @@ rule run:
         mv_contcar_to_poscar(params.folder)
         shell(
             f"""
-            cd {params.folder}
-            sbatch run.sh
-            touch done.txt
-        """
+            sbatch {params.folder}/run.sh
+            touch {output.done}
+            """
         )
 
 
