@@ -64,7 +64,14 @@ def cli():
 
 @cli.command("all")
 def run_all():
-    """Run all VASP calculations that are ready for processing."""
+    """Run all VASP calculations that are ready for processing.
+
+    Usage:
+        vsn all
+
+    Returns:
+        None
+    """
     workflow = VaspWorkflow()
     workflow.run_all()
     return None
@@ -73,7 +80,18 @@ def run_all():
 @cli.command("run")
 @click.option("--folder", help="Specific folder to run calculation in")
 def run(folder):
-    """Run VASP calculation in a specific folder or all eligible folders."""
+    """Run VASP calculation in a specific folder or all eligible folders.
+
+    Args:
+        folder: Path to the folder to run calculation in
+
+    Usage:
+        vsn run --folder path/to/folder  # Run in specific folder
+        vsn run                          # Run in all eligible folders
+
+    Returns:
+        None
+    """
     workflow = VaspWorkflow()
     if folder:
         workflow.run(folder)
@@ -84,7 +102,14 @@ def run(folder):
 
 @cli.command("report-status")
 def report_status():
-    """Generate a status report of all VASP calculations."""
+    """Generate a status report of all VASP calculations.
+
+    Usage:
+        vsn report-status
+
+    Returns:
+        None
+    """
     workflow = VaspWorkflow()
     workflow.report_status()
     return None
@@ -97,7 +122,18 @@ def report_status():
     help="Output CSV filename for collected information",
 )
 def collect_info(filename):
-    """Collect results from completed VASP calculations into a CSV file."""
+    """Collect results from completed VASP calculations into a CSV file.
+
+    Args:
+        filename: Output CSV filename for collected information
+
+    Usage:
+        vsn collect-info                        # Default output to structure_info.csv
+        vsn collect-info --filename results.csv # Custom filename
+
+    Returns:
+        None
+    """
     workflow = VaspWorkflow()
     workflow.collect_info(filename)
     return None
