@@ -21,30 +21,9 @@ rule all:
         expand("{folder}/done.txt", folder=find_folders()),
 
 
-rule link:
-    input:
-        poscar="{folder}/POSCAR",
-        incar="INCAR",
-        potcar="POTCAR",
-        runsh="run.sh",
-    output:
-        touch("{folder}/.linked"),
-    params:
-        folder="{folder}",
-    shell:
-        """
-        cd {params.folder}
-        ln -sf ../INCAR .
-        ln -sf ../POTCAR .
-        ln -sf ../run.sh .
-        touch .linked
-        """
-
-
 rule run:
     input:
         poscar="{folder}/POSCAR",
-        linked="{folder}/.linked",
     output:
         done="{folder}/done.txt",
     params:
