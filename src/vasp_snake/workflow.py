@@ -17,12 +17,13 @@ class VaspWorkflow:
         folders = self.filter_folders()
         for folder in folders:
             self.run(folder)
+        return None
 
     def run(self, folder):
         poscar = os.path.join(self.root, folder, "POSCAR")
         if not os.path.exists(poscar):
             print(f"POSCAR not found in {folder}, skipping.")
-            return
+            return None
         mv_contcar_to_poscar(folder)
         run_sh = os.path.join(self.root, folder, "run.sh")
         if os.path.exists(run_sh):
@@ -31,10 +32,12 @@ class VaspWorkflow:
         with open(done_txt, "w") as _:
             pass  # Creates an empty file
         print(f"Job submitted and done.txt touched for {folder}")
+        return None
 
     def report_status(self):
         FolderClassifier.from_directory(self.root).dump_status()
         print("report_status.json written.")
+        return None
 
     def collect_info(self, filename="structure_info.csv"):
         folders = self.filter_folders()
@@ -48,6 +51,7 @@ class VaspWorkflow:
         df = rc.to_dataframe()
         df.to_csv(os.path.join(self.root, filename))
         print(f"{filename} written.")
+        return None
 
 
 if __name__ == "__main__":
