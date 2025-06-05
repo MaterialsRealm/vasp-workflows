@@ -1,6 +1,8 @@
 import os
 import subprocess
 
+import click
+
 from vasp_snake.collect_info import ResultCollector
 from vasp_snake.report import FolderClassifier
 from vasp_snake.restart import mv_contcar_to_poscar
@@ -54,29 +56,48 @@ class VaspWorkflow:
         return None
 
 
-if __name__ == "__main__":
-    import argparse
+@click.group()
+def cli():
+    """VASP Workflow Manager - Command line interface for managing VASP workflows."""
+    pass
 
-    parser = argparse.ArgumentParser(description="VASP Workflow Manager")
-    parser.add_argument(
-        "command",
-        choices=["all", "run", "clean", "report_status", "collect_info"],
-        help="Workflow command to run",
-    )
-    parser.add_argument("--folder", help="Specific folder for 'run' command")
-    args = parser.parse_args()
 
+@cli.command("all")
+def run_all():
+    """Run all VASP calculations that are ready for processing."""
     workflow = VaspWorkflow()
-    if args.command == "all":
+    workflow.run_all()
+    return None
+
+
+@cli.command("run")
+@click.option("--folder", help="Specific folder to run calculation in")
+def run(folder):
+    """Run VASP calculation in a specific folder or all eligible folders."""
+    workflow = VaspWorkflow()
+    if folder:
+        workflow.run(folder)
+    else:
         workflow.run_all()
-    elif args.command == "run":
-        if args.folder:
-            workflow.run(args.folder)
-        else:
-            workflow.run_all()
-    elif args.command == "clean":
-        workflow.clean()
-    elif args.command == "report_status":
-        workflow.report_status()
-    elif args.command == "collect_info":
-        workflow.collect_info()
+    return None
+
+
+@cli.command("report-status")
+def report_status():
+    """Generate a status report of all VASP calculations."""
+    workflow = VaspWorkflow()
+    workflow.report_status()
+    return None
+
+
+@cli.command("collect-info")
+@click.option(
+    "--filename",
+    default="structure_info.csv",
+    help="Output CSV filename for collected information",
+)
+def collect_info(filename):
+    """Collect results from completed VASP calculations into a CSV file."""
+    workflow = VaspWorkflow()
+    workflow.collect_info(filename)
+    return None
