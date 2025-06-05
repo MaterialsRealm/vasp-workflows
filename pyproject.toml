@@ -26,3 +26,6 @@ dev = [
     "rich>=14.0.0",
     "see>=1.4.1",
 ]
+
+[project.scripts]
+vsn = "vasp_snake.workflow:cli"
