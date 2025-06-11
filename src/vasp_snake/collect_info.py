@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from .cell import count_elements, get_volume
+from .cell import count_elements, get_energies, get_volume
 from .magnetization import MagnetizationParser
 from .report import FolderClassifier, JobStatus
 
@@ -30,12 +30,14 @@ class ResultCollector:
 
                 tot_mag_outcar = None
                 tot_mag_oszicar = None
+                free_energy, internal_energy = None, None
 
                 if os.path.exists(outcar_path):
                     tot_mag_outcar = MagnetizationParser.from_outcar(outcar_path)
 
                 if os.path.exists(oszicar_path):
                     tot_mag_oszicar = MagnetizationParser.from_oszicar(oszicar_path)
+                    free_energy, internal_energy = get_energies(oszicar_path)
 
                 if not os.path.exists(contcar_path):
                     structure_info[folder] = {
@@ -44,6 +46,8 @@ class ResultCollector:
                         "composition": None,
                         "tot_mag_outcar": tot_mag_outcar,
                         "tot_mag_oszicar": tot_mag_oszicar,
+                        "F": free_energy,
+                        "E0": internal_energy,
                         "reason": "CONTCAR missing",
                     }
                     continue
@@ -57,6 +61,8 @@ class ResultCollector:
                         "composition": None,
                         "tot_mag_outcar": tot_mag_outcar,
                         "tot_mag_oszicar": tot_mag_oszicar,
+                        "F": free_energy,
+                        "E0": internal_energy,
                         "reason": f"Failed to parse CONTCAR: {e}",
                     }
                 else:
@@ -66,6 +72,8 @@ class ResultCollector:
                         "composition": composition,
                         "tot_mag_outcar": tot_mag_outcar,
                         "tot_mag_oszicar": tot_mag_oszicar,
+                        "F": free_energy,
+                        "E0": internal_energy,
                         "reason": "Success",
                     }
         self.structure_info = structure_info
