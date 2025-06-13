@@ -13,7 +13,6 @@ dependencies = [
     "pandas>=2.2.3",
     "pymatgen>=2025",
     "pyyaml>=6",
-    "snakemake>=9",
 ]
 [tool.pyrefly]
 project_includes = ["**/*"]
