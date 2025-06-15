@@ -13,11 +13,31 @@ __all__ = ["ResultCollector"]
 
 class ResultCollector:
     def __init__(self, root=".", atol=1e-6):
+        """Initializes the ResultCollector.
+
+        Args:
+            root (str):
+                Root directory to search for results. Defaults to current directory.
+            atol (float):
+                Absolute tolerance for energy comparison. Defaults to 1e-6.
+        """
         self.root = root
         self.atol = atol
         self.structure_info = None
 
     def collect(self):
+        """Collects information from VASP calculation folders.
+
+        Scans subdirectories for calculation results, parses relevant files (CONTCAR, OUTCAR, OSZICAR),
+        and stores structure and energy information in self.structure_info.
+
+        Returns:
+            None
+
+        Example:
+            collector = ResultCollector(root="./vasp_runs")
+            collector.collect()
+        """
         status_dict = FolderClassifier.from_directory(self.root, self.atol).details
         structure_info = {}
 
@@ -79,6 +99,21 @@ class ResultCollector:
         self.structure_info = structure_info
 
     def to_json(self, output="structure_info.json"):
+        """Saves the collected structure information to a JSON file.
+
+        Args:
+            output (str):
+                Path to the output JSON file. Defaults to 'structure_info.json'.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If collect() has not been run before calling this method.
+
+        Example:
+            collector.to_json("my_results.json")
+        """
         if self.structure_info is None:
             raise ValueError("You must run collect() before saving JSON.")
 
@@ -91,11 +126,33 @@ class ResultCollector:
             json.dump(self.structure_info, f, indent=2, default=safe)
 
     def to_dict(self):
+        """Returns the collected structure information as a dictionary.
+
+        Returns:
+            dict: The structure information collected from calculation folders.
+
+        Raises:
+            ValueError: If collect() has not been run before calling this method.
+
+        Example:
+            info = collector.to_dict()
+        """
         if self.structure_info is None:
             raise ValueError("You must run collect() before returning dict.")
         return self.structure_info
 
     def to_dataframe(self):
+        """Converts the collected structure information to a pandas DataFrame.
+
+        Returns:
+            pandas.DataFrame: DataFrame containing structure and energy information for each folder.
+
+        Raises:
+            ValueError: If collect() has not been run before calling this method.
+
+        Example:
+            df = collector.to_dataframe()
+        """
         if self.structure_info is None:
             raise ValueError("You must run collect() before converting to DataFrame.")
         df = pd.DataFrame.from_dict(self.structure_info, orient="index")
