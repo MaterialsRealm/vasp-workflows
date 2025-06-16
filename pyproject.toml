@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vasp-snakemake"
+name = "vasp-workflows"
 version = "0.1.0"
-description = "Add your description here"
+description = "VASP workflows used in our group"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
