@@ -2,7 +2,26 @@ import os
 
 from pymatgen.io.vasp import Poscar
 
-__all__ = ["concatenate_potcar", "generate_potcars"]
+__all__ = ["concatenate_potcar", "generate_potcars", "find_folders"]
+
+
+def find_folders(root_dir):
+    """
+    Find all subfolders in a given root directory, excluding hidden folders.
+
+    Args:
+        root_dir (str): Path to the root directory to search.
+
+    Returns:
+        list: List of folder paths (absolute paths).
+    """
+    folders = []
+    for item in os.listdir(root_dir):
+        if not item.startswith("."):
+            full_path = os.path.join(root_dir, item)
+            if os.path.isdir(full_path):
+                folders.append(full_path)
+    return folders
 
 
 def concatenate_potcar(poscar_path, potcar_map):
