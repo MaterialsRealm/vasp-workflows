@@ -36,4 +36,4 @@ doc = [
 ]
 
 [project.scripts]
-vsn = "vasp_snake.workflow:cli"
+vsn = "vasp_wfl.workflow:cli"
