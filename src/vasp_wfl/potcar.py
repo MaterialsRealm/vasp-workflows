@@ -1,8 +1,61 @@
 import os
 
+from pymatgen.io.cif import CifParser
 from pymatgen.io.vasp import Poscar
 
-__all__ = ["concatenate_potcar", "generate_potcars", "find_folders"]
+__all__ = [
+    "list_elements",
+    "find_potentials",
+    "concatenate_potcar",
+    "generate_potcars",
+    "find_folders",
+]
+
+
+def list_elements(files):
+    """Extract all unique elements from a list of CIF files.
+
+    Given a list of CIF files, this function parses each file and extracts
+    all unique chemical elements present in the crystal structures.
+
+    Args:
+        files (list): List of CIF file paths to parse.
+
+    Returns:
+        set: Set of unique element names (strings) found across all CIF files.
+    """
+    elements = set()
+    for cif in files:
+        parser = CifParser(cif)
+        structure = parser.parse_structures()[0]
+        elements.update(element.name for element in structure.elements)
+    return elements
+
+
+def find_potentials(potential_dir, elements):
+    """Find corresponding VASP potentials for given elements.
+
+    Given a root directory containing VASP potential files and a set of elements,
+    this function locates the POTCAR file for each element. The function expects
+    potentials to be organized in subdirectories named after each element.
+
+    Args:
+        potential_dir (str): Root directory path containing potential subdirectories.
+        elements (set): Set of element names to find potentials for.
+
+    Returns:
+        dict: Dictionary mapping element names to their POTCAR file paths.
+
+    Raises:
+        FileNotFoundError: If POTCAR file for any element is not found.
+    """
+    potentials = {}
+    for element in elements:
+        file = os.path.join(potential_dir, element, "POTCAR")
+        potentials[element] = file
+        if not os.path.isfile(file):
+            raise FileNotFoundError(f"POTCAR file for {element} not found in {file}")
+    return potentials
 
 
 def find_folders(root_dir):
