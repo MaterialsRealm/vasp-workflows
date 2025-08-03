@@ -6,7 +6,6 @@ from pymatgen.io.vasp import Poscar
 __all__ = [
     "ElementExtractor",
     "PotcarGenerator",
-    "find_potentials",
     "find_folders",
 ]
 
@@ -79,12 +78,35 @@ class PotcarGenerator:
         """
         self.potential_dir = potential_dir
 
-    def _concatenate_potcar_content(self, elements, potcar_map):
+    def find_potentials(self, elements):
+        """Find corresponding VASP potentials for given elements.
+
+        Args:
+            elements: Set of element names to find potentials for.
+
+        Returns:
+            dict: Dictionary mapping element names to their POTCAR file paths.
+
+        Raises:
+            FileNotFoundError: If POTCAR file for any element is not found.
+        """
+        potentials = {}
+        for element in elements:
+            file = os.path.join(self.potential_dir, element, "POTCAR")
+            potentials[element] = file
+            if not os.path.isfile(file):
+                raise FileNotFoundError(
+                    f"POTCAR file for {element} not found in {file}"
+                )
+        return potentials
+
+    def concatenate_potcar_content(self, elements, potcar_map=None):
         """Concatenate POTCAR files for given elements.
 
         Args:
             elements: List of element symbols in order.
             potcar_map: Mapping from element symbol to POTCAR file path.
+                        If None, will be generated using find_potentials.
 
         Returns:
             str: Concatenated POTCAR content as a string.
@@ -92,12 +114,15 @@ class PotcarGenerator:
         Raises:
             FileNotFoundError: If POTCAR file for any element is not found.
         """
+        if potcar_map is None:
+            potcar_map = self.find_potentials(elements)
+
         potcar_contents = []
-        for symbol in elements:
-            potcar_file = potcar_map.get(symbol)
+        for element in elements:
+            potcar_file = potcar_map.get(element)
             if not potcar_file or not os.path.exists(potcar_file):
                 raise FileNotFoundError(
-                    f"POTCAR file for {symbol} not found: {potcar_file}"
+                    f"POTCAR file for {element} not found: {potcar_file}"
                 )
             with open(potcar_file, "r") as f:
                 potcar_contents.append(f.read())
@@ -111,8 +136,7 @@ class PotcarGenerator:
             output_path: Path where POTCAR file will be written.
         """
         elements = ElementExtractor.from_cif(cif_file)
-        potcar_map = find_potentials(self.potential_dir, elements)
-        potcar_content = self._concatenate_potcar_content(elements, potcar_map)
+        potcar_content = self.concatenate_potcar_content(elements)
 
         with open(output_path, "w") as f:
             f.write(potcar_content)
@@ -125,8 +149,7 @@ class PotcarGenerator:
             output_path: Path where POTCAR file will be written.
         """
         elements = ElementExtractor.from_poscar(poscar_file)
-        potcar_map = find_potentials(self.potential_dir, elements)
-        potcar_content = self._concatenate_potcar_content(elements, potcar_map)
+        potcar_content = self.concatenate_potcar_content(elements)
 
         with open(output_path, "w") as f:
             f.write(potcar_content)
@@ -157,32 +180,6 @@ class PotcarGenerator:
                 self.from_cif(file_path, output_path)
             else:
                 self.from_poscar(file_path, output_path)
-
-
-def find_potentials(potential_dir, elements):
-    """Find corresponding VASP potentials for given elements.
-
-    Given a root directory containing VASP potential files and a set of elements,
-    this function locates the POTCAR file for each element. The function expects
-    potentials to be organized in subdirectories named after each element.
-
-    Args:
-        potential_dir: Root directory path containing potential subdirectories.
-        elements: Set of element names to find potentials for.
-
-    Returns:
-        dict: Dictionary mapping element names to their POTCAR file paths.
-
-    Raises:
-        FileNotFoundError: If POTCAR file for any element is not found.
-    """
-    potentials = {}
-    for element in elements:
-        file = os.path.join(potential_dir, element, "POTCAR")
-        potentials[element] = file
-        if not os.path.isfile(file):
-            raise FileNotFoundError(f"POTCAR file for {element} not found in {file}")
-    return potentials
 
 
 def find_folders(root_dir):
