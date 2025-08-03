@@ -6,6 +6,7 @@ from pymatgen.io.vasp import Poscar
 __all__ = [
     "list_elements",
     "find_potentials",
+    "get_elements_from_poscar",
     "concatenate_potcar",
     "generate_potcars",
     "find_folders",
@@ -77,6 +78,26 @@ def find_folders(root_dir):
     return folders
 
 
+def get_elements_from_poscar(poscar_path):
+    """Extract unique element symbols from a POSCAR file.
+
+    Args:
+        poscar_path (str): Path to the POSCAR file.
+
+    Returns:
+        list: List of unique element symbols in the order they appear.
+    """
+    poscar = Poscar.from_file(poscar_path)
+    # Get unique symbols while preserving order
+    seen = set()
+    unique_symbols = []
+    for symbol in poscar.site_symbols:
+        if symbol not in seen:
+            seen.add(symbol)
+            unique_symbols.append(symbol)
+    return unique_symbols
+
+
 def concatenate_potcar(poscar_path, potcar_map):
     """
     Concatenate POTCAR files according to the order of site symbols in the POSCAR file.
@@ -87,10 +108,13 @@ def concatenate_potcar(poscar_path, potcar_map):
 
     Returns:
         str: Concatenated POTCAR content as a string.
+
+    Raises:
+        FileNotFoundError: If POTCAR file for any element is not found.
     """
-    poscars = Poscar.from_file(poscar_path)
+    unique_symbols = get_elements_from_poscar(poscar_path)
     potcar_contents = []
-    for symbol in poscars.site_symbols:
+    for symbol in unique_symbols:
         potcar_file = potcar_map.get(symbol)
         if not potcar_file or not os.path.exists(potcar_file):
             raise FileNotFoundError(
