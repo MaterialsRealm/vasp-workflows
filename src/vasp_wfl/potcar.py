@@ -164,17 +164,9 @@ class PotcarGenerator:
             output_dir: Directory to write POTCAR files. If None, writes to same directory as input file.
         """
         for file_path in files:
+            file_dir = os.path.dirname(file_path)  # Determine output path
+            output_path = os.path.join(file_dir, "POTCAR")
             file_ext = os.path.splitext(file_path)[1].lower()
-
-            # Determine output path
-            if output_dir:
-                filename = os.path.basename(file_path)
-                base_name = os.path.splitext(filename)[0]
-                output_path = os.path.join(output_dir, f"{base_name}_POTCAR")
-            else:
-                file_dir = os.path.dirname(file_path)
-                output_path = os.path.join(file_dir, "POTCAR")
-
             # Generate POTCAR based on file type
             if file_ext == ".cif":
                 self.from_cif(file_path, output_path)
