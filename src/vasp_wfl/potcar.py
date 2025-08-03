@@ -7,12 +7,7 @@ __all__ = [
     "ElementExtractor",
     "PotcarGenerator",
     "find_potentials",
-    "concatenate_potcar",
     "find_folders",
-    # Deprecated functions
-    "list_elements",
-    "get_elements_from_poscar",
-    "generate_potcars",
 ]
 
 
@@ -164,28 +159,6 @@ class PotcarGenerator:
                 self.from_poscar(file_path, output_path)
 
 
-def list_elements(files):
-    """Extract all unique elements from a list of CIF files.
-
-    DEPRECATED: Use ElementExtractor.from_files() instead.
-
-    Given a list of CIF files, this function parses each file and extracts
-    all unique chemical elements present in the crystal structures.
-
-    Args:
-        files: List of CIF file paths to parse.
-
-    Returns:
-        set: Set of unique element names (strings) found across all CIF files.
-    """
-    elements = set()
-    for cif in files:
-        parser = CifParser(cif)
-        structure = parser.parse_structures()[0]
-        elements.update(element.name for element in structure.elements)
-    return elements
-
-
 def find_potentials(potential_dir, elements):
     """Find corresponding VASP potentials for given elements.
 
@@ -229,67 +202,3 @@ def find_folders(root_dir):
             if os.path.isdir(full_path):
                 folders.append(full_path)
     return folders
-
-
-def get_elements_from_poscar(poscar_path):
-    """Extract unique element symbols from a POSCAR file.
-
-    DEPRECATED: Use ElementExtractor.from_poscar() instead.
-
-    Args:
-        poscar_path: Path to the POSCAR file.
-
-    Returns:
-        list: List of unique element symbols in the order they appear.
-    """
-    return ElementExtractor.from_poscar(poscar_path)
-
-
-def concatenate_potcar(poscar_path, potcar_map):
-    """
-    Concatenate POTCAR files according to the order of site symbols in the POSCAR file.
-
-    Args:
-        poscar_path: Path to the POSCAR file.
-        potcar_map: Mapping from element symbol to POTCAR file path, e.g. {'Fe': 'POTCAR_Fe', ...}
-
-    Returns:
-        str: Concatenated POTCAR content as a string.
-
-    Raises:
-        FileNotFoundError: If POTCAR file for any element is not found.
-    """
-    unique_symbols = get_elements_from_poscar(poscar_path)
-    potcar_contents = []
-    for symbol in unique_symbols:
-        potcar_file = potcar_map.get(symbol)
-        if not potcar_file or not os.path.exists(potcar_file):
-            raise FileNotFoundError(
-                f"POTCAR file for {symbol} not found: {potcar_file}"
-            )
-        with open(potcar_file, "r") as f:
-            potcar_contents.append(f.read())
-    return "".join(potcar_contents)
-
-
-def generate_potcars(folders, potcar_map):
-    """
-    For each folder, read the POSCAR, concatenate POTCARs, and write to POTCAR file.
-
-    DEPRECATED: Use PotcarGenerator class instead.
-
-    Args:
-        folders: List of folder paths.
-        potcar_map: Mapping from element symbol to POTCAR file path.
-
-    Raises:
-        FileNotFoundError: If POSCAR or POTCAR file is missing.
-    """
-    for folder in folders:
-        poscar_path = os.path.join(folder, "POSCAR")
-        if not os.path.exists(poscar_path):
-            raise FileNotFoundError(f"POSCAR not found in {folder}")
-        potcar_content = concatenate_potcar(poscar_path, potcar_map)
-        potcar_file = os.path.join(folder, "POTCAR")
-        with open(potcar_file, "w") as f:
-            f.write(potcar_content)
