@@ -28,8 +28,6 @@ class StructureParser:
     @staticmethod
     def from_file(path):
         file_ext = os.path.splitext(path)[1].lower()
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"File '{path}' does not exist.")
         if file_ext == ".cif":
             return StructureParser.from_cif(path)
         elif file_ext == "" or file_ext == ".poscar":
