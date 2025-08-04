@@ -5,7 +5,7 @@ import click
 
 from vasp_wfl.collect_info import ResultCollector
 from vasp_wfl.report import FolderClassifier
-from vasp_wfl.restart import mv_contcar_to_poscar
+from vasp_wfl.poscar import mv_contcar_to_poscar
 
 
 class VaspWorkflow:
