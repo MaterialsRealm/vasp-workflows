@@ -3,7 +3,9 @@ import os
 import shutil
 from fnmatch import fnmatch
 
-__all__ = ["WorkdirFinder", "TemplateDistributor"]
+import pystache
+
+__all__ = ["WorkdirFinder", "TemplateDistributor", "TemplateModifier"]
 
 
 class WorkdirFinder:
@@ -163,3 +165,70 @@ class TemplateDistributor:
                 successful_dirs.add(work_dir)
 
         return successful_dirs
+
+
+class TemplateModifier:
+    """
+    A class representing a single template file, supporting rendering with Mustache syntax
+    and modification of target files in append or overwrite modes.
+    """
+
+    def __init__(self, template, target_file):
+        """
+        Initialize with the template text (Mustache syntax) and the target filename.
+
+        Args:
+            template: The raw template string with Mustache placeholders.
+            target_file: The name of the file to modify in each working directory.
+        """
+        self.template = template
+        self.target_file = target_file
+
+    def render_and_modify(self, target_dir, variables, mode="append"):
+        """
+        Render the template with provided variables and modify the target file in the given directory.
+
+        Args:
+            target_dir: Path to the directory containing the target file.
+            variables: Dictionary of variables for rendering the Mustache template.
+            mode: 'append' to add rendered text to existing content; 'overwrite' to replace it.
+
+        Returns:
+            bool: True if modification was successful, False otherwise.
+        """
+        target_path = os.path.join(target_dir, self.target_file)
+        if not os.path.exists(target_path):
+            logger.warning(f"Target file '{target_path}' does not exist; creating it.")
+            with open(target_path, "w") as f:
+                f.write("")  # Create empty file if needed
+
+        # Render the template
+        rendered = pystache.render(self.template, variables)
+        try:
+            if mode == "append":
+                # Read existing content and append rendered
+                with open(target_path, "r") as f:
+                    existing = f.read()
+                new_content = existing + "\n" + rendered  # Add newline for separation
+                with open(target_path, "w") as f:
+                    f.write(new_content)
+                logger.info(f"Appended rendered template to '{target_path}'.")
+            elif mode == "overwrite":
+                # Read original line count and blank with newlines
+                with open(target_path, "r") as f:
+                    lines = f.readlines()
+                num_lines = len(lines)
+                blank_content = "\n" * num_lines
+                with open(target_path, "w") as f:
+                    f.write(blank_content)
+                logger.warning(f"Performed intermediate blanking on '{target_path}'.")
+                # Final overwrite with rendered content
+                with open(target_path, "w") as f:
+                    f.write(rendered)
+                logger.warning(f"Overwrote '{target_path}' with rendered template")
+            else:
+                raise ValueError("Invalid mode; must be 'append' or 'overwrite'.")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to modify '{target_path}': {e}")
+            return False
