@@ -9,6 +9,7 @@ from pymatgen.io.vasp import Poscar
 __all__ = [
     "StructureParser",
     "ElementExtractor",
+    "SiteExtractor",
     "cif_to_poscar",
     "mv_contcar_to_poscar",
 ]
@@ -95,6 +96,61 @@ class ElementExtractor:
         return {
             element for file in files for element in ElementExtractor.from_file(file)
         }
+
+
+class SiteExtractor:
+    """Class for extracting atomic sites from various file formats."""
+
+    @staticmethod
+    def from_cif(cif_file):
+        """Extract all atomic sites from a single CIF file.
+
+        Args:
+            cif_file: Path to a CIF file to parse.
+
+        Returns:
+            list: A list of atomic sites found in the CIF file.
+        """
+        return SiteExtractor.from_file(cif_file)
+
+    @staticmethod
+    def from_poscar(poscar_file):
+        """Extract atomic sites from a POSCAR file.
+
+        Args:
+            poscar_file: Path to the POSCAR file.
+
+        Returns:
+            list: A list of atomic sites in the structure.
+        """
+        return SiteExtractor.from_file(poscar_file)
+
+    @staticmethod
+    def from_file(path):
+        """Extract atomic sites from a file based on its extension.
+
+        Args:
+            path: Path to the file (CIF or POSCAR).
+
+        Returns:
+            list: List of atomic sites found in the file.
+        """
+        structure = StructureParser.from_file(path)
+        return structure.sites
+
+    @staticmethod
+    def from_files(files):
+        """Extract atomic sites from a list of files based on their extensions.
+
+        Processes CIF files (.cif) and POSCAR files (others) separately.
+
+        Args:
+            files: List of file paths (CIF or POSCAR files).
+
+        Returns:
+            list: List of all atomic sites found across all files.
+        """
+        return [SiteExtractor.from_file(file) for file in files]
 
 
 def cif_to_poscar(cif_files):
