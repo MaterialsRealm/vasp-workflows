@@ -13,6 +13,7 @@ dependencies = [
     "click>=8",
     "pandas>=2.2.3",
     "pymatgen>=2025",
+    "pystache>=0.6.8",
     "pyyaml>=6",
 ]
 [tool.pyrefly]
