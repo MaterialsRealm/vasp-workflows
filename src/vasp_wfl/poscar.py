@@ -40,6 +40,26 @@ class ElementExtractor:
         return set(poscar.site_symbols)
 
     @staticmethod
+    def from_file(path):
+        """Extract unique elements from a file based on its extension.
+
+        Args:
+            path: Path to the file (CIF or POSCAR).
+
+        Returns:
+            set: Set of unique element names found in the file.
+        """
+        file_ext = os.path.splitext(path)[1].lower()
+        if not os.path.exists(path):
+            return None
+        if file_ext == ".cif":
+            return ElementExtractor.from_cif(path)
+        elif file_ext == "" or file_ext == ".poscar":
+            return ElementExtractor.from_poscar(path)
+        else:
+            raise ValueError(f"Unsupported file type: '{file_ext}'.")
+
+    @staticmethod
     def from_files(files):
         """Extract unique elements from a list of files based on their extensions.
 
@@ -51,19 +71,11 @@ class ElementExtractor:
         Returns:
             set: Set of unique element names found across all files.
         """
-        all_elements = set()
-        for file_path in files:
-            file_ext = os.path.splitext(file_path)[1].lower()
-            if file_ext == ".cif":
-                # Handle as CIF file
-                elements = ElementExtractor.from_cif(file_path)
-                all_elements.update(elements)
-            else:
-                # Handle as POSCAR file
-                elements = ElementExtractor.from_poscar(file_path)
-                all_elements.update(elements)
-
-        return all_elements
+        return {
+            element
+            for file in files
+            for element in ElementExtractor.from_file(file) or set()  # In case of `None`
+        }
 
 
 def cif_to_poscar(cif_files):
