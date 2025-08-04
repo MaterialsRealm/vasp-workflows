@@ -79,7 +79,7 @@ class WorkdirFinder:
         return {d for d in dir_list if WorkdirFinder.is_workdir(d)}
 
     @staticmethod
-    def find_workdirs(start_dir):
+    def find_workdirs(start_dir, ignore_patterns=None):
         """
         Identify all VASP working directories within a given starting directory and its entire
         subdirectory tree (recursive), including the start directory if applicable.
@@ -88,15 +88,22 @@ class WorkdirFinder:
 
         Args:
             start_dir: Path to the starting directory for recursive search.
+            ignore_patterns: List of patterns to ignore (uses fnmatch syntax, e.g., ['*backup*', 'temp_*']).
 
         Returns:
             set: Set of VASP working directory paths (absolute paths).
         """
         workdirs = set()
+        ignore_patterns = ignore_patterns or []
 
         for current_dir, subdirs, files in os.walk(start_dir, topdown=True):
-            # Exclude hidden subdirectories from further traversal
-            subdirs[:] = [d for d in subdirs if not d.startswith(".")]
+            # Exclude hidden subdirectories and pattern-matched directories from further traversal
+            subdirs[:] = [
+                d
+                for d in subdirs
+                if not d.startswith(".")
+                and not any(fnmatch(d, pattern) for pattern in ignore_patterns)
+            ]
             # Check if the current directory is a working directory
             if WorkdirFinder.is_workdir(current_dir):
                 workdirs.add(os.path.abspath(current_dir))
