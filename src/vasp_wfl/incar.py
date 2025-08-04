@@ -1,7 +1,9 @@
+import logging
 import os
+import shutil
 from fnmatch import fnmatch
 
-__all__ = ["VaspDirFinder"]
+__all__ = ["VaspDirFinder", "TemplateDistributor"]
 
 
 class VaspDirFinder:
@@ -98,3 +100,58 @@ class VaspDirFinder:
                 workdirs.add(os.path.abspath(current_dir))
 
         return workdirs
+
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
+
+
+class TemplateDistributor:
+    """
+    A class for distributing template input files to VASP working directories.
+    """
+
+    def __init__(self, src_files):
+        """
+        Initialize with a list of source file paths to be copied.
+
+        Args:
+            src_files: List of file paths to be distributed to VASP working directories.
+        """
+        self.src_files = [os.path.abspath(src_file) for src_file in src_files if os.path.isfile(src_file)]
+        for src_file in src_files:
+            if not os.path.isfile(src_file):
+                logger.warning(f"Source file '{src_file}' does not exist and will be skipped.")
+
+    def distribute_templates(self, start_dir, overwrite=False):
+        """
+        Copy the specified source files to all VASP working directories found under the start directory.
+
+        Args:
+            start_dir: Path to the starting directory for recursive search of VASP working directories.
+            overwrite: If True, overwrite existing files in target directories; if False, skip them.
+
+        Returns:
+            set: Set of VASP working directory paths where files were successfully copied.
+        """
+        # Initialize VaspDirFinder to locate working directories
+        vasp_finder = VaspDirFinder()
+        work_dirs = vasp_finder.find_workdirs(start_dir)
+        successful_dirs = set()
+        for work_dir in work_dirs:
+            copied_files = False
+            for src_file in self.src_files:
+                dest_file = os.path.join(work_dir, os.path.basename(src_file))
+                try:
+                    if os.path.exists(dest_file) and not overwrite:
+                        logger.info(f"Skipping '{dest_file}' as it already exists (overwrite=False).")
+                        continue
+                    shutil.copy2(src_file, dest_file)
+                    logger.info(f"Copied '{src_file}' to '{dest_file}'.")
+                    copied_files = True
+                except (PermissionError, OSError) as e:
+                    logger.error(f"Failed to copy '{src_file}' to '{dest_file}': {e}")
+            if copied_files:
+                successful_dirs.add(work_dir)
+
+        return successful_dirs
