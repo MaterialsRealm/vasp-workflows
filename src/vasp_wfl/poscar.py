@@ -27,16 +27,16 @@ class ElementExtractor:
         return {element.name for element in structure.elements}
 
     @staticmethod
-    def from_poscar(poscar_path):
+    def from_poscar(poscar_file):
         """Extract unique element symbols from a POSCAR file.
 
         Args:
-            poscar_path: Path to the POSCAR file.
+            poscar_file: Path to the POSCAR file.
 
         Returns:
             set: A set of unique element symbols in the order they appear.
         """
-        poscar = Poscar.from_file(poscar_path)
+        poscar = Poscar.from_file(poscar_file)
         return set(poscar.site_symbols)
 
     @staticmethod
