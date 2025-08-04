@@ -6,7 +6,40 @@ from ase.io import read, write
 from pymatgen.io.cif import CifParser
 from pymatgen.io.vasp import Poscar
 
-__all__ = ["ElementExtractor", "cif_to_poscar", "mv_contcar_to_poscar"]
+__all__ = [
+    "StructureParser",
+    "ElementExtractor",
+    "cif_to_poscar",
+    "mv_contcar_to_poscar",
+]
+
+
+class StructureParser:
+    @staticmethod
+    def from_cif(cif_file):
+        parser = CifParser(cif_file)
+        return parser.parse_structures()[0]  # Only 1 element expected
+
+    @staticmethod
+    def from_poscar(poscar_file):
+        poscar = Poscar.from_file(poscar_file)
+        return poscar.structure
+
+    @staticmethod
+    def from_file(path):
+        file_ext = os.path.splitext(path)[1].lower()
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"File '{path}' does not exist.")
+        if file_ext == ".cif":
+            return StructureParser.from_cif(path)
+        elif file_ext == "" or file_ext == ".poscar":
+            return StructureParser.from_poscar(path)
+        else:
+            raise ValueError(f"Unsupported file type: '{file_ext}'.")
+
+    @staticmethod
+    def from_files(files):
+        return [StructureParser.from_file(file) for file in files]
 
 
 class ElementExtractor:
@@ -22,9 +55,7 @@ class ElementExtractor:
         Returns:
             set: A set of unique element names (strings) found in the CIF file.
         """
-        parser = CifParser(cif_file)
-        structure = parser.parse_structures()[0]
-        return {element.name for element in structure.elements}
+        return ElementExtractor.from_file(cif_file)
 
     @staticmethod
     def from_poscar(poscar_file):
@@ -36,8 +67,7 @@ class ElementExtractor:
         Returns:
             set: A set of unique element symbols in the order they appear.
         """
-        poscar = Poscar.from_file(poscar_file)
-        return set(poscar.site_symbols)
+        return ElementExtractor.from_file(poscar_file)
 
     @staticmethod
     def from_file(path):
@@ -49,15 +79,8 @@ class ElementExtractor:
         Returns:
             set: Set of unique element names found in the file.
         """
-        file_ext = os.path.splitext(path)[1].lower()
-        if not os.path.exists(path):
-            return None
-        if file_ext == ".cif":
-            return ElementExtractor.from_cif(path)
-        elif file_ext == "" or file_ext == ".poscar":
-            return ElementExtractor.from_poscar(path)
-        else:
-            raise ValueError(f"Unsupported file type: '{file_ext}'.")
+        structure = StructureParser.from_file(path)
+        return set(structure.elements)
 
     @staticmethod
     def from_files(files):
@@ -72,9 +95,7 @@ class ElementExtractor:
             set: Set of unique element names found across all files.
         """
         return {
-            element
-            for file in files
-            for element in ElementExtractor.from_file(file) or set()  # In case of `None`
+            element for file in files for element in ElementExtractor.from_file(file)
         }
 
 
