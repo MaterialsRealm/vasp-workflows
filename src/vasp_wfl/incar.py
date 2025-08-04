@@ -75,7 +75,7 @@ class VaspDirFinder:
         return {d for d in dir_list if VaspDirFinder.is_workdir(d)}
 
     @staticmethod
-    def find_workdirs(start_dir: str) -> list[str]:
+    def find_workdirs(start_dir):
         """
         Identify all VASP working directories within a given starting directory and its entire
         subdirectory tree (recursive), including the start directory if applicable.
@@ -86,14 +86,15 @@ class VaspDirFinder:
             start_dir: Path to the starting directory for recursive search.
 
         Returns:
-            list: List of VASP working directory paths (absolute paths).
+            set: Set of VASP working directory paths (absolute paths).
         """
-        workdirs = []
+        workdirs = set()
+
         for current_dir, subdirs, files in os.walk(start_dir, topdown=True):
             # Exclude hidden subdirectories from further traversal
             subdirs[:] = [d for d in subdirs if not d.startswith(".")]
             # Check if the current directory is a working directory
             if VaspDirFinder.is_workdir(current_dir):
-                workdirs.append(os.path.abspath(current_dir))
+                workdirs.add(os.path.abspath(current_dir))
 
         return workdirs
