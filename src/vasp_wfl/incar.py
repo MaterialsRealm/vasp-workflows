@@ -3,10 +3,10 @@ import os
 import shutil
 from fnmatch import fnmatch
 
-__all__ = ["VaspDirFinder", "TemplateDistributor"]
+__all__ = ["WorkdirFinder", "TemplateDistributor"]
 
 
-class VaspDirFinder:
+class WorkdirFinder:
     """
     A class for identifying VASP working directories based on the presence of specific input files.
     """
@@ -57,7 +57,7 @@ class VaspDirFinder:
         except Exception:
             return False
         for file in files:
-            if file in VaspDirFinder.INPUT_FILES:
+            if file in WorkdirFinder.INPUT_FILES:
                 return True
             if fnmatch(file, "WFULL????.tmp") or fnmatch(file, "W????.tmp"):
                 return True
@@ -74,7 +74,7 @@ class VaspDirFinder:
         Returns:
             list: List of paths that are VASP working directories.
         """
-        return {d for d in dir_list if VaspDirFinder.is_workdir(d)}
+        return {d for d in dir_list if WorkdirFinder.is_workdir(d)}
 
     @staticmethod
     def find_workdirs(start_dir):
@@ -96,7 +96,7 @@ class VaspDirFinder:
             # Exclude hidden subdirectories from further traversal
             subdirs[:] = [d for d in subdirs if not d.startswith(".")]
             # Check if the current directory is a working directory
-            if VaspDirFinder.is_workdir(current_dir):
+            if WorkdirFinder.is_workdir(current_dir):
                 workdirs.add(os.path.abspath(current_dir))
 
         return workdirs
@@ -118,10 +118,16 @@ class TemplateDistributor:
         Args:
             src_files: List of file paths to be distributed to VASP working directories.
         """
-        self.src_files = [os.path.abspath(src_file) for src_file in src_files if os.path.isfile(src_file)]
+        self.src_files = [
+            os.path.abspath(src_file)
+            for src_file in src_files
+            if os.path.isfile(src_file)
+        ]
         for src_file in src_files:
             if not os.path.isfile(src_file):
-                logger.warning(f"Source file '{src_file}' does not exist and will be skipped.")
+                logger.warning(
+                    f"Source file '{src_file}' does not exist and will be skipped."
+                )
 
     def distribute_templates(self, start_dir, overwrite=False):
         """
@@ -135,8 +141,8 @@ class TemplateDistributor:
             set: Set of VASP working directory paths where files were successfully copied.
         """
         # Initialize VaspDirFinder to locate working directories
-        vasp_finder = VaspDirFinder()
-        work_dirs = vasp_finder.find_workdirs(start_dir)
+        finder = WorkdirFinder()
+        work_dirs = finder.find_workdirs(start_dir)
         successful_dirs = set()
         for work_dir in work_dirs:
             copied_files = False
@@ -144,7 +150,9 @@ class TemplateDistributor:
                 dest_file = os.path.join(work_dir, os.path.basename(src_file))
                 try:
                     if os.path.exists(dest_file) and not overwrite:
-                        logger.info(f"Skipping '{dest_file}' as it already exists (overwrite=False).")
+                        logger.info(
+                            f"Skipping '{dest_file}' as it already exists (overwrite=False)."
+                        )
                         continue
                     shutil.copy2(src_file, dest_file)
                     logger.info(f"Copied '{src_file}' to '{dest_file}'.")
