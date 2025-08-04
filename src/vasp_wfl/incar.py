@@ -1,6 +1,8 @@
 import os
 from fnmatch import fnmatch
 
+__all__ = ["VaspDirFinder"]
+
 
 class VaspDirFinder:
     """
