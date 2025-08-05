@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+from collections import Counter
 
 from ase.io import read, write
 from pymatgen.io.cif import CifParser
@@ -9,6 +10,7 @@ from pymatgen.io.vasp import Poscar
 __all__ = [
     "StructureParser",
     "ElementExtractor",
+    "ElementCounter",
     "SiteExtractor",
     "cif_to_poscar",
     "mv_contcar_to_poscar",
@@ -96,6 +98,61 @@ class ElementExtractor:
         return {
             element for file in files for element in ElementExtractor.from_file(file)
         }
+
+
+class ElementCounter:
+    """Class for counting element occurrences in various file formats."""
+
+    @staticmethod
+    def from_cif(cif_file):
+        """Count element occurrences from a single CIF file.
+
+        Args:
+            cif_file: Path to a CIF file to parse.
+
+        Returns:
+            dict: A dictionary with element names as keys and counts as values.
+        """
+        return ElementCounter.from_file(cif_file)
+
+    @staticmethod
+    def from_poscar(poscar_file):
+        """Count element occurrences from a POSCAR file.
+
+        Args:
+            poscar_file: Path to the POSCAR file.
+
+        Returns:
+            dict: A dictionary with element names as keys and counts as values.
+        """
+        return ElementCounter.from_file(poscar_file)
+
+    @staticmethod
+    def from_file(path):
+        """Count element occurrences from a file based on its extension.
+
+        Args:
+            path: Path to the file (CIF or POSCAR).
+
+        Returns:
+            dict: Dictionary with element names as keys and counts as values.
+        """
+        structure = StructureParser.from_file(path)
+        return Counter(structure.species)
+
+    @staticmethod
+    def from_files(files):
+        """Count element occurrences from a list of files based on their extensions.
+
+        Processes CIF files (.cif) and POSCAR files (others) separately.
+
+        Args:
+            files: List of file paths (CIF or POSCAR files).
+
+        Returns:
+            dict: Dictionary with element names as keys and total counts as values.
+        """
+        return [SiteExtractor.from_file(file) for file in files]
 
 
 class SiteExtractor:
