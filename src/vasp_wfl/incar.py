@@ -191,6 +191,70 @@ class TemplateModifier:
         self.template = template
         self.target_file = target_file
 
+    def render(self, target_dir, variables, mode="append"):
+        """
+        Render the template with provided variables, handling file content based on mode.
+
+        Args:
+            target_dir: Path to the directory containing the target file.
+            variables: Dictionary of variables for rendering the Mustache template.
+            mode: 'append' to add rendered text to existing content; 'overwrite' to replace it.
+
+        Returns:
+            str: The final content to write to the file.
+        """
+        target_path = os.path.join(target_dir, self.target_file)
+        rendered = pystache.render(self.template, variables)
+
+        if mode == "append":
+            if os.path.exists(target_path):
+                with open(target_path, "r") as f:
+                    existing = f.read()
+                return existing + "\n" + rendered
+            else:
+                return rendered
+        elif mode == "overwrite":
+            return rendered
+        else:
+            raise ValueError("Invalid mode; must be 'append' or 'overwrite'.")
+
+    def modify(self, target_dir, final_content, mode="append"):
+        """
+        Write the final content to the target file in the given directory.
+
+        Args:
+            target_dir: Path to the directory containing the target file.
+            final_content: The final content to write to the file.
+            mode: Mode used for logging purposes ('append' or 'overwrite').
+
+        Returns:
+            bool: True if modification was successful, False otherwise.
+        """
+        target_path = os.path.join(target_dir, self.target_file)
+
+        try:
+            if mode == "overwrite" and os.path.exists(target_path):
+                # Read original line count and blank with newlines for overwrite mode
+                with open(target_path, "r") as f:
+                    lines = f.readlines()
+                num_lines = len(lines)
+                blank_content = "\n" * num_lines
+                with open(target_path, "w") as f:
+                    f.write(blank_content)
+                logger.warning(f"Performed intermediate blanking on '{target_path}'.")
+
+            with open(target_path, "w") as f:
+                f.write(final_content)
+
+            if mode == "append":
+                logger.info(f"Appended rendered template to '{target_path}'.")
+            else:
+                logger.warning(f"Overwrote '{target_path}' with rendered template")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to modify '{target_path}': {e}")
+            return False
+
     def render_and_modify(self, target_dir, variables, mode="append"):
         """
         Render the template with provided variables and modify the target file in the given directory.
@@ -203,39 +267,5 @@ class TemplateModifier:
         Returns:
             bool: True if modification was successful, False otherwise.
         """
-        target_path = os.path.join(target_dir, self.target_file)
-        if not os.path.exists(target_path):
-            logger.warning(f"Target file '{target_path}' does not exist; creating it.")
-            with open(target_path, "w") as f:
-                f.write("")  # Create empty file if needed
-
-        # Render the template
-        rendered = pystache.render(self.template, variables)
-        try:
-            if mode == "append":
-                # Read existing content and append rendered
-                with open(target_path, "r") as f:
-                    existing = f.read()
-                new_content = existing + "\n" + rendered  # Add newline for separation
-                with open(target_path, "w") as f:
-                    f.write(new_content)
-                logger.info(f"Appended rendered template to '{target_path}'.")
-            elif mode == "overwrite":
-                # Read original line count and blank with newlines
-                with open(target_path, "r") as f:
-                    lines = f.readlines()
-                num_lines = len(lines)
-                blank_content = "\n" * num_lines
-                with open(target_path, "w") as f:
-                    f.write(blank_content)
-                logger.warning(f"Performed intermediate blanking on '{target_path}'.")
-                # Final overwrite with rendered content
-                with open(target_path, "w") as f:
-                    f.write(rendered)
-                logger.warning(f"Overwrote '{target_path}' with rendered template")
-            else:
-                raise ValueError("Invalid mode; must be 'append' or 'overwrite'.")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to modify '{target_path}': {e}")
-            return False
+        final_content = self.render(target_dir, variables, mode)
+        return self.modify(target_dir, final_content, mode)
