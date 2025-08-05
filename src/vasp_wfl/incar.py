@@ -292,7 +292,6 @@ def update_incar_templates(template_str, dirs):
     """
     modifier = TemplateModifier(template_str, "INCAR")
     successful_dirs = set()
-
     for d in dirs:
         poscar_path = os.path.join(d, "POSCAR")
         if not os.path.exists(poscar_path):
@@ -303,10 +302,7 @@ def update_incar_templates(template_str, dirs):
         system_name = os.path.basename(d)
         magmoms = [{"count": count} for count in counter.values()]
         variables = {"system_name": system_name, "magmoms": magmoms}
-
-        print(modifier.render(d, variables, "append"))
-
-        # if modifier.render_and_modify(d, variables, "append"):
-        #     successful_dirs.add(d)
+        if modifier.render_and_modify(d, variables, "append"):
+            successful_dirs.add(d)
 
     return successful_dirs
