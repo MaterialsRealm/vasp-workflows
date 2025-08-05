@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+from abc import ABC, abstractmethod
 from collections import Counter
 
 from ase.io import read, write
@@ -19,251 +20,160 @@ __all__ = [
 
 
 class StructureParser:
+    """Parser class to extract structures from CIF and POSCAR files."""
+
     @staticmethod
     def from_cif(cif_file):
+        """Extract structure from a CIF file.
+
+        Args:
+            cif_file (str): Path to the CIF file.
+
+        Returns:
+            pymatgen.Structure: Parsed structure.
+        """
         parser = CifParser(cif_file)
-        return parser.parse_structures()[0]  # Only 1 element expected
+        return parser.parse_structures()[0]  # Only one structure expected
 
     @staticmethod
     def from_poscar(poscar_file):
+        """Extract structure from a POSCAR file.
+
+        Args:
+            poscar_file (str): Path to the POSCAR file.
+
+        Returns:
+            pymatgen.Structure: Parsed structure.
+        """
         poscar = Poscar.from_file(poscar_file)
         return poscar.structure
 
     @staticmethod
     def from_file(path):
+        """Extract structure based on file extension.
+
+        Args:
+            path (str): Path to the file (.cif or .poscar).
+
+        Returns:
+            pymatgen.Structure: Parsed structure.
+
+        Raises:
+            ValueError: If file type is unsupported.
+        """
         file_ext = os.path.splitext(path)[1].lower()
         if file_ext == ".cif":
             return StructureParser.from_cif(path)
-        elif file_ext == "" or file_ext == ".poscar":
+        elif file_ext in ("", ".poscar"):
             return StructureParser.from_poscar(path)
         else:
             raise ValueError(f"Unsupported file type: '{file_ext}'.")
 
-    @staticmethod
-    def from_files(files):
-        return [StructureParser.from_file(file) for file in files]
 
+class StructureProcessor(ABC):
+    """Abstract base class for processing structures."""
 
-class ElementExtractor:
-    """Class for extracting element symbols from various file formats."""
-
-    @staticmethod
-    def from_cif(cif_file):
-        """Extract all unique elements from a single CIF file.
+    @classmethod
+    def from_file(cls, path):
+        """Process structure from a single file.
 
         Args:
-            cif_file: Path to a CIF file to parse.
+            path (str): Path to the file (.cif or .poscar).
 
         Returns:
-            set: A set of unique element names (strings) found in the CIF file.
-        """
-        return ElementExtractor.from_file(cif_file)
-
-    @staticmethod
-    def from_poscar(poscar_file):
-        """Extract unique element symbols from a POSCAR file.
-
-        Args:
-            poscar_file: Path to the POSCAR file.
-
-        Returns:
-            set: A set of unique element symbols in the order they appear.
-        """
-        return ElementExtractor.from_file(poscar_file)
-
-    @staticmethod
-    def from_file(path):
-        """Extract unique elements from a file based on its extension.
-
-        Args:
-            path: Path to the file (CIF or POSCAR).
-
-        Returns:
-            set: Set of unique element names found in the file.
+            Result of processing as defined by subclass implementation.
         """
         structure = StructureParser.from_file(path)
+        return cls.process(structure)
+
+    @classmethod
+    def from_files(cls, files):
+        """Process structures from multiple files.
+
+        Args:
+            files (list): List of file paths (.cif or .poscar).
+
+        Returns:
+            list: List of processed results.
+        """
+        return [cls.from_file(f) for f in files]
+
+    @staticmethod
+    @abstractmethod
+    def process(structure):
+        """Abstract method to process a single structure.
+
+        Args:
+            structure (pymatgen.Structure): Structure to process.
+
+        Returns:
+            Defined by subclass implementation.
+        """
+        pass
+
+
+class ElementExtractor(StructureProcessor):
+    """Class to extract unique elements from a structure."""
+
+    @staticmethod
+    def process(structure):
+        """Extract unique elements from structure.
+
+        Args:
+            structure (pymatgen.Structure): Structure to process.
+
+        Returns:
+            set: Set of unique elements.
+        """
         return set(structure.elements)
 
-    @staticmethod
-    def from_files(files):
-        """Extract unique elements from a list of files based on their extensions.
 
-        Processes CIF files (.cif) and POSCAR files (others) separately.
-
-        Args:
-            files: List of file paths (CIF or POSCAR files).
-
-        Returns:
-            set: Set of unique element names found across all files.
-        """
-        return {
-            element for file in files for element in ElementExtractor.from_file(file)
-        }
-
-
-class ElementCounter:
-    """Class for counting element occurrences in various file formats."""
+class ElementCounter(StructureProcessor):
+    """Class to count occurrences of elements in a structure."""
 
     @staticmethod
-    def from_cif(cif_file):
-        """Count element occurrences from a single CIF file.
+    def process(structure):
+        """Count occurrences of each element in structure.
 
         Args:
-            cif_file: Path to a CIF file to parse.
+            structure (pymatgen.Structure): Structure to process.
 
         Returns:
-            dict: A dictionary with element names as keys and counts as values.
+            Counter: Element counts.
         """
-        return ElementCounter.from_file(cif_file)
-
-    @staticmethod
-    def from_poscar(poscar_file):
-        """Count element occurrences from a POSCAR file.
-
-        Args:
-            poscar_file: Path to the POSCAR file.
-
-        Returns:
-            dict: A dictionary with element names as keys and counts as values.
-        """
-        return ElementCounter.from_file(poscar_file)
-
-    @staticmethod
-    def from_file(path):
-        """Count element occurrences from a file based on its extension.
-
-        Args:
-            path: Path to the file (CIF or POSCAR).
-
-        Returns:
-            dict: Dictionary with element names as keys and counts as values.
-        """
-        structure = StructureParser.from_file(path)
         return Counter(structure.species)
 
-    @staticmethod
-    def from_files(files):
-        """Count element occurrences from a list of files based on their extensions.
 
-        Processes CIF files (.cif) and POSCAR files (others) separately.
-
-        Args:
-            files: List of file paths (CIF or POSCAR files).
-
-        Returns:
-            dict: Dictionary with element names as keys and total counts as values.
-        """
-        return [SiteExtractor.from_file(file) for file in files]
-
-
-class SiteExtractor:
-    """Class for extracting atomic sites from various file formats."""
+class SiteExtractor(StructureProcessor):
+    """Class to extract atomic sites from a structure."""
 
     @staticmethod
-    def from_cif(cif_file):
-        """Extract all atomic sites from a single CIF file.
+    def process(structure):
+        """Extract atomic sites from structure.
 
         Args:
-            cif_file: Path to a CIF file to parse.
+            structure (pymatgen.Structure): Structure to process.
 
         Returns:
-            list: A list of atomic sites found in the CIF file.
+            list: List of atomic sites.
         """
-        return SiteExtractor.from_file(cif_file)
-
-    @staticmethod
-    def from_poscar(poscar_file):
-        """Extract atomic sites from a POSCAR file.
-
-        Args:
-            poscar_file: Path to the POSCAR file.
-
-        Returns:
-            list: A list of atomic sites in the structure.
-        """
-        return SiteExtractor.from_file(poscar_file)
-
-    @staticmethod
-    def from_file(path):
-        """Extract atomic sites from a file based on its extension.
-
-        Args:
-            path: Path to the file (CIF or POSCAR).
-
-        Returns:
-            list: List of atomic sites found in the file.
-        """
-        structure = StructureParser.from_file(path)
         return structure.sites
 
-    @staticmethod
-    def from_files(files):
-        """Extract atomic sites from a list of files based on their extensions.
 
-        Processes CIF files (.cif) and POSCAR files (others) separately.
-
-        Args:
-            files: List of file paths (CIF or POSCAR files).
-
-        Returns:
-            list: List of all atomic sites found across all files.
-        """
-        return [SiteExtractor.from_file(file) for file in files]
-
-
-class SymmetryDetector:
-    """Class for detecting symmetry information from various file formats."""
+class SymmetryDetector(StructureProcessor):
+    """Class to detect symmetry information from a structure."""
 
     @staticmethod
-    def from_cif(cif_file):
-        """Extract symmetry information from a single CIF file.
+    def process(structure):
+        """Detect symmetry information from structure.
 
         Args:
-            cif_file: Path to a CIF file to parse.
+            structure (pymatgen.Structure): Structure to process.
 
         Returns:
-            tuple: Space group information from the CIF file.
+            tuple: Space group information.
         """
-        return SymmetryDetector.from_file(cif_file)
-
-    @staticmethod
-    def from_poscar(poscar_file):
-        """Extract symmetry information from a POSCAR file.
-
-        Args:
-            poscar_file: Path to the POSCAR file.
-
-        Returns:
-            tuple: Space group information from the structure.
-        """
-        return SymmetryDetector.from_file(poscar_file)
-
-    @staticmethod
-    def from_file(path):
-        """Extract symmetry information from a file based on its extension.
-
-        Args:
-            path: Path to the file (CIF or POSCAR).
-
-        Returns:
-            tuple: Space group information found in the file.
-        """
-        structure = StructureParser.from_file(path)
         return structure.get_space_group_info()
-
-    @staticmethod
-    def from_files(files):
-        """Extract symmetry information from a list of files based on their extensions.
-
-        Processes CIF files (.cif) and POSCAR files (others) separately.
-
-        Args:
-            files: List of file paths (CIF or POSCAR files).
-
-        Returns:
-            list: List of space group information found across all files.
-        """
-        return [SymmetryDetector.from_file(file) for file in files]
 
 
 def cif_to_poscar(cif_files):
