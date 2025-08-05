@@ -5,7 +5,14 @@ from fnmatch import fnmatch
 
 import pystache
 
-__all__ = ["WorkdirFinder", "TemplateDistributor", "TemplateModifier"]
+from .poscar import ElementCounter
+
+__all__ = [
+    "WorkdirFinder",
+    "TemplateDistributor",
+    "TemplateModifier",
+    "update_incar_templates",
+]
 
 
 class WorkdirFinder:
@@ -269,3 +276,37 @@ class TemplateModifier:
         """
         final_content = self.render(target_dir, variables, mode)
         return self.modify(target_dir, final_content, mode)
+
+
+def update_incar_templates(template_str, dirs):
+    """
+    Update INCAR files in the provided VASP working directories by rendering and applying
+    a dynamic template for SYSTEM and MAGMOM based on POSCAR element counts.
+
+    Args:
+        dirs: List of VASP working directory paths.
+        mode: Modification mode ('append' or 'overwrite') for the target INCAR file.
+
+    Returns:
+        set: Set of directories where the INCAR was successfully modified.
+    """
+    modifier = TemplateModifier(template_str, "INCAR")
+    successful_dirs = set()
+
+    for d in dirs:
+        poscar_path = os.path.join(d, "POSCAR")
+        if not os.path.exists(poscar_path):
+            logger.warning(f"POSCAR not found in directory '{d}'. Skipping.")
+            continue
+
+        counter = ElementCounter.from_poscar(poscar_path)
+        system_name = os.path.basename(d)
+        magmoms = [{"count": count} for count in counter.values()]
+        variables = {"system_name": system_name, "magmoms": magmoms}
+
+        print(modifier.render(d, variables, "append"))
+
+        # if modifier.render_and_modify(d, variables, "append"):
+        #     successful_dirs.add(d)
+
+    return successful_dirs
