@@ -81,7 +81,7 @@ class PotcarGenerator:
         with open(output_path, "w") as f:
             f.write(potcar_content)
 
-    def from_files(self, files, output_dir):
+    def from_files(self, files, output_dir=None):
         """Generate POTCAR files for multiple structure files.
 
         For each file, generates a POTCAR in the same directory or specified output directory.
@@ -91,11 +91,9 @@ class PotcarGenerator:
             output_dir: Directory to write POTCAR files. If None, writes to same directory as input file.
         """
         for file_path in files:
-            file_dir = os.path.dirname(file_path)  # Determine output path
-            output_path = os.path.join(file_dir, "POTCAR")
-            file_ext = os.path.splitext(file_path)[1].lower()
-            # Generate POTCAR based on file type
-            if file_ext == ".cif":
-                self.from_file(file_path, output_path)
+            if output_dir:
+                output_path = os.path.join(output_dir, "POTCAR")
             else:
-                self.from_file(file_path, output_path)
+                file_dir = os.path.dirname(file_path)
+                output_path = os.path.join(file_dir, "POTCAR")
+            self.from_file(file_path, output_path)
