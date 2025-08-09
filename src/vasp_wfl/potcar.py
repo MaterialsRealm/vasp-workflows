@@ -68,27 +68,14 @@ class PotcarGenerator:
                 potcar_contents.append(f.read())
         return "".join(potcar_contents)
 
-    def from_cif(self, cif_file, output_path):
-        """Generate POTCAR from a CIF file.
+    def from_file(self, structure_file, output_path):
+        """Generate POTCAR from a structure file (CIF or POSCAR).
 
         Args:
-            cif_file: Path to the CIF file.
+            structure_file: Path to the structure file (CIF or POSCAR).
             output_path: Path where POTCAR file will be written.
         """
-        elements = ElementExtractor.from_cif(cif_file)
-        potcar_content = self.concatenate_potcar_content(elements)
-
-        with open(output_path, "w") as f:
-            f.write(potcar_content)
-
-    def from_poscar(self, poscar_file, output_path):
-        """Generate POTCAR from a POSCAR file.
-
-        Args:
-            poscar_file: Path to the POSCAR file.
-            output_path: Path where POTCAR file will be written.
-        """
-        elements = ElementExtractor.from_poscar(poscar_file)
+        elements = ElementExtractor.from_file(structure_file)
         potcar_content = self.concatenate_potcar_content(elements)
 
         with open(output_path, "w") as f:
@@ -109,6 +96,6 @@ class PotcarGenerator:
             file_ext = os.path.splitext(file_path)[1].lower()
             # Generate POTCAR based on file type
             if file_ext == ".cif":
-                self.from_cif(file_path, output_path)
+                self.from_file(file_path, output_path)
             else:
-                self.from_poscar(file_path, output_path)
+                self.from_file(file_path, output_path)
