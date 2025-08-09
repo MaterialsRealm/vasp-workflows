@@ -78,7 +78,8 @@ class PotcarGenerator:
             output_path: Path where POTCAR file will be written.
         """
         elements = ElementExtractor.from_file(structure_file)
-        potcar_content = self.concatenate_potcar_content(elements)
+        symbols = [element.name for element in elements]
+        potcar_content = self.concatenate_potcar_content(symbols)
 
         with open(output_path, "w") as f:
             f.write(potcar_content)
