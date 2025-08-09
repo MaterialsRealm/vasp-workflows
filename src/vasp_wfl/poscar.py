@@ -109,7 +109,7 @@ class StructureProcessor(ABC):
         Returns:
             Defined by subclass implementation.
         """
-        pass
+        raise NotImplementedError
 
 
 class ElementExtractor(StructureProcessor):
