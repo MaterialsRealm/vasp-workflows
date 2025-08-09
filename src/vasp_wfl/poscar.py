@@ -123,9 +123,9 @@ class ElementExtractor(StructureProcessor):
             structure (pymatgen.Structure): Structure to process.
 
         Returns:
-            set: Set of unique elements.
+            list: List of unique elements.
         """
-        return set(structure.elements)
+        return structure.elements
 
 
 class ElementCounter(StructureProcessor):
