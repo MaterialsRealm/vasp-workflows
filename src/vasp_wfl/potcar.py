@@ -10,43 +10,47 @@ __all__ = [
 class PotcarGenerator:
     """Class for generating POTCAR files from structure files."""
 
-    def __init__(self, potential_dir):
-        """Initialize PotcarGenerator with potential directory.
+    def __init__(self, potential_dir, element_pot_map=None):
+        """Initialize PotcarGenerator with potential directory and optional element-potential mapping.
 
         Args:
             potential_dir: Root directory path containing potential subdirectories.
+            element_pot_map: Optional dict mapping element symbols to potential names (e.g., {"Si": "Si_GW", "O": "O_s"}).
         """
         self.potential_dir = potential_dir
+        self.element_pot_map = element_pot_map
 
     def find_potentials(self, elements):
-        """Find corresponding VASP potentials for given elements.
+        """Find corresponding VASP potentials for given elements using the instance's element-potential mapping.
 
         Args:
             elements: Set of element names to find potentials for.
 
         Returns:
-            dict: Dictionary mapping element names to their POTCAR file paths.
+            dict: Dictionary mapping element symbols to their POTCAR file paths.
 
         Raises:
             FileNotFoundError: If POTCAR file for any element is not found.
         """
         potentials = {}
         for element in elements:
-            file = os.path.join(self.potential_dir, element, "POTCAR")
+            if self.element_pot_map:  # `dict` not empty
+                potential_name = self.element_pot_map.get(element, element)
+            else:
+                potential_name = element
+            file = os.path.join(self.potential_dir, potential_name, "POTCAR")
             potentials[element] = file
             if not os.path.isfile(file):
                 raise FileNotFoundError(
-                    f"POTCAR file for {element} not found in {file}"
+                    f"POTCAR file for {element} (potential {potential_name}) not found in {file}"
                 )
         return potentials
 
-    def concatenate_potcar_content(self, elements, potcar_map=None):
-        """Concatenate POTCAR files for given elements.
+    def concatenate_potcar_content(self, elements):
+        """Concatenate POTCAR files for given elements using the instance's element-potential mapping.
 
         Args:
             elements: List of element symbols in order.
-            potcar_map: Mapping from element symbol to POTCAR file path.
-                        If None, will be generated using find_potentials.
 
         Returns:
             str: Concatenated POTCAR content as a string.
@@ -54,9 +58,7 @@ class PotcarGenerator:
         Raises:
             FileNotFoundError: If POTCAR file for any element is not found.
         """
-        if potcar_map is None:
-            potcar_map = self.find_potentials(elements)
-
+        potcar_map = self.find_potentials(elements)
         potcar_contents = []
         for element in elements:
             potcar_file = potcar_map.get(element)
@@ -69,7 +71,7 @@ class PotcarGenerator:
         return "".join(potcar_contents)
 
     def from_file(self, structure_file, output_path):
-        """Generate POTCAR from a structure file (CIF or POSCAR).
+        """Generate POTCAR from a structure file (CIF or POSCAR), using the instance's element-potential mapping.
 
         Args:
             structure_file: Path to the structure file (CIF or POSCAR).
@@ -82,7 +84,7 @@ class PotcarGenerator:
             f.write(potcar_content)
 
     def from_files(self, files, output_dir=None):
-        """Generate POTCAR files for multiple structure files.
+        """Generate POTCAR files for multiple structure files, using the instance's element-potential mapping.
 
         For each file, generates a POTCAR in the same directory or specified output directory.
 
