@@ -2,10 +2,10 @@ import os
 
 import numpy as np
 
-from .dirs import Status, WorkdirClassifier
+from .dirs import Status
 from .force import parse_forces_and_check_zero
 
-__all__ = ["WorkdirClassifier"]
+__all__ = ["default_classifier"]
 
 
 def default_classifier(folder_path, atol: float = 1e-6) -> dict:

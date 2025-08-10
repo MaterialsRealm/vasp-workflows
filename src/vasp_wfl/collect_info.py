@@ -5,8 +5,9 @@ import numpy as np
 import pandas as pd
 
 from .cell import count_elements, get_energies, get_volume
+from .dirs import WorkdirClassifier
 from .magnetization import MagnetizationParser
-from .report import FolderClassifier, JobStatus
+from .report import Status, default_classifier
 
 __all__ = ["ResultCollector"]
 
@@ -38,11 +39,13 @@ class ResultCollector:
             collector = ResultCollector(root="./vasp_runs")
             collector.collect()
         """
-        status_dict = FolderClassifier.from_directory(self.root, self.atol).details
+        status_dict = WorkdirClassifier.from_root(
+            self.root, default_classifier, atol=self.atol
+        ).details
         structure_info = {}
 
         for folder, info in status_dict.items():
-            if info["status"] == JobStatus.DONE:
+            if info["status"] == Status.DONE:
                 contcar_path = os.path.join(self.root, folder, "CONTCAR")
                 abs_path = os.path.abspath(contcar_path)
                 outcar_path = os.path.join(self.root, folder, "OUTCAR")

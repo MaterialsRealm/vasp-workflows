@@ -3,9 +3,10 @@ import subprocess
 
 import click
 
-from vasp_wfl.collect_info import ResultCollector
-from vasp_wfl.report import FolderClassifier
-from vasp_wfl.poscar import mv_contcar_to_poscar
+from .collect_info import ResultCollector
+from .dirs import WorkdirClassifier
+from .poscar import mv_contcar_to_poscar
+from .report import default_classifier
 
 
 class VaspWorkflow:
@@ -13,7 +14,7 @@ class VaspWorkflow:
         self.root = root
 
     def filter_folders(self):
-        return FolderClassifier.from_directory(self.root).to_rerun()
+        return WorkdirClassifier.from_root(self.root, default_classifier).to_rerun()
 
     def run_all(self):
         folders = self.filter_folders()
@@ -37,7 +38,7 @@ class VaspWorkflow:
         return None
 
     def report_status(self):
-        FolderClassifier.from_directory(self.root).dump_status()
+        WorkdirClassifier.from_root(self.root, default_classifier).dump_status()
         print("report_status.json written.")
         return None
 
