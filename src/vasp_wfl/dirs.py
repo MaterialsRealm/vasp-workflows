@@ -3,7 +3,7 @@ import os
 from collections import Counter
 from enum import StrEnum
 from fnmatch import fnmatch
-from typing import Any
+from typing import Callable
 
 import numpy as np
 import yaml
@@ -124,61 +124,94 @@ class Status(StrEnum):
     NOT_CONVERGED = "NOT_CONVERGED"
 
 
+def default_status_classifier(folder_path, atol: float = 1e-6) -> dict:
+    """
+    Default classification function for VASP calculation status.
+
+    Args:
+        folder_path (str): Path to the VASP calculation folder.
+        atol (float): Absolute tolerance for force convergence.
+        **kwargs: Additional keyword arguments (unused in default classifier).
+
+    Returns:
+        dict: Dictionary with at least 'status' key, and optionally other keys like
+              'forces_sum', 'reason', etc.
+    """
+    outcar = os.path.join(folder_path, "OUTCAR")
+    if not os.path.exists(outcar):
+        forces_sum = [np.nan, np.nan, np.nan]
+        job_status = Status.PENDING
+        reason = "OUTCAR missing"
+    else:
+        forces_sum, is_converged = parse_forces_and_check_zero(outcar, atol=atol)
+        if forces_sum is None:
+            forces_sum = [np.nan, np.nan, np.nan]
+            job_status = Status.NOT_CONVERGED
+            reason = "No force block found"
+        elif is_converged:
+            job_status = Status.DONE
+            reason = "Forces converged"
+        else:
+            job_status = Status.NOT_CONVERGED
+            reason = f"Force sum norm {np.linalg.norm(forces_sum):.3g} >= atol {atol}"
+        forces_sum = [
+            float(f) for f in (forces_sum if forces_sum is not None else [np.nan] * 3)
+        ]
+
+    return {
+        "status": job_status.value,
+        "forces_sum": forces_sum,
+        "reason": reason,
+    }
+
+
 class WorkdirClassifier:
     """Classifies VASP calculation folders by job status and provides summary and filtering utilities."""
 
-    def __init__(self, directories, atol=1e-6):
+    def __init__(
+        self, directories, classifier_func: Callable[..., dict], *args, **kwargs
+    ):
         """
         Initialize and classify VASP calculation folders by job status.
 
         Args:
             directories (list): List of directory paths to classify.
-            atol (float): Absolute tolerance for force convergence. Defaults to 1e-6.
+            classifier_func (Callable[..., dict]): Function to classify job status.
+                Should take (folder_path, *args, **kwargs) and return a dict with at least 'status' key.
+            *args: Additional positional arguments passed to classifier_func.
+            **kwargs: Additional keyword arguments passed to classifier_func.
         """
         details = {}
         for folder_path in directories:
             folder = os.path.basename(folder_path.rstrip(os.sep))
             if not os.path.isdir(folder_path) or folder.startswith("."):
                 continue
-            outcar = os.path.join(folder_path, "OUTCAR")
-            if not os.path.exists(outcar):
-                forces_sum = [np.nan, np.nan, np.nan]
-                job_status = Status.PENDING
-                reason = "OUTCAR missing"
-            else:
-                forces_sum, is_converged = parse_forces_and_check_zero(
-                    outcar, atol=atol
-                )
-                if forces_sum is None:
-                    forces_sum = [np.nan, np.nan, np.nan]
-                    job_status = Status.NOT_CONVERGED
-                    reason = "No force block found"
-                elif is_converged:
-                    job_status = Status.DONE
-                    reason = "Forces converged"
-                else:
-                    job_status = Status.NOT_CONVERGED
-                    reason = f"Force sum norm {np.linalg.norm(forces_sum):.3g} >= atol {atol}"
-                forces_sum = [
-                    float(f)
-                    for f in (forces_sum if forces_sum is not None else [np.nan] * 3)
-                ]
-            details[folder] = {
-                "status": job_status.value,
-                "forces_sum": forces_sum,
-                "reason": reason,
-            }
+
+            detail_dict = classifier_func(folder_path, *args, **kwargs)
+            if not isinstance(detail_dict, dict) or "status" not in detail_dict:
+                raise ValueError("Classifier must return a dict with key 'status'!")
+            details[folder] = detail_dict
         self._details = details
 
     @classmethod
-    def from_root(cls, root_dir, atol=1e-6, ignore_patterns=None):
+    def from_root(
+        cls,
+        root_dir,
+        classifier_func: Callable[..., dict],
+        *args,
+        ignore_patterns=None,
+        **kwargs,
+    ):
         """
         Create a WorkdirClassifier from a root directory by finding and classifying all VASP workdirs.
 
         Args:
             root_dir (str): Root directory to search for VASP workdirs.
-            atol (float): Absolute tolerance for force convergence. Defaults to 1e-6.
+            classifier_func (Callable[..., dict]): Function to classify job status.
+                Should take (folder_path, *args, **kwargs) and return a dict with at least 'status' key.
+            *args: Additional positional arguments passed to classifier_func.
             ignore_patterns (list, optional): Patterns to ignore during search.
+            **kwargs: Additional keyword arguments passed to classifier_func.
 
         Returns:
             WorkdirClassifier: An instance with details populated from the found directories.
@@ -186,7 +219,7 @@ class WorkdirClassifier:
         workdirs = WorkdirFinder.find_workdirs(
             root_dir, ignore_patterns=ignore_patterns
         )
-        return cls(workdirs, atol=atol)
+        return cls(workdirs, classifier_func, *args, **kwargs)
 
     @property
     def summary(self):
