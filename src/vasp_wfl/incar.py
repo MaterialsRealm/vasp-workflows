@@ -298,7 +298,7 @@ def update_incar_templates(template_str, dirs):
             logger.warning(f"POSCAR not found in directory '{d}'. Skipping.")
             continue
 
-        counter = ElementCounter.from_poscar(poscar_path)
+        counter = ElementCounter.from_file(poscar_path)
         system_name = os.path.basename(d)
         magmoms = [{"count": count} for count in counter.values()]
         variables = {"system_name": system_name, "magmoms": magmoms}
