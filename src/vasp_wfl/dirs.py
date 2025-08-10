@@ -124,18 +124,16 @@ class Status(StrEnum):
 class WorkdirClassifier:
     """Classifies VASP calculation folders by job status and provides summary and filtering utilities."""
 
-    def __init__(
-        self, directories, classifier_func: Callable[..., dict], *args, **kwargs
-    ):
+    def __init__(self, directories, func: Callable[..., dict], *args, **kwargs):
         """
         Initialize and classify VASP calculation folders by job status.
 
         Args:
             directories (list): List of directory paths to classify.
-            classifier_func (Callable[..., dict]): Function to classify job status.
-                Should take (folder_path, *args, **kwargs) and return a dict with at least 'status' key.
-            *args: Additional positional arguments passed to classifier_func.
-            **kwargs: Additional keyword arguments passed to classifier_func.
+            func (Callable[..., dict]): Function to classify job status.
+                Should take `(folder_path, *args, **kwargs)` and return a dict with at least 'status' key.
+            *args: Additional positional arguments passed to `func`.
+            **kwargs: Additional keyword arguments passed to `func`.
         """
         details = {}
         for folder_path in directories:
@@ -143,7 +141,7 @@ class WorkdirClassifier:
             if not os.path.isdir(folder_path) or folder.startswith("."):
                 continue
 
-            detail_dict = classifier_func(folder_path, *args, **kwargs)
+            detail_dict = func(folder_path, *args, **kwargs)
             if not isinstance(detail_dict, dict) or "status" not in detail_dict:
                 raise ValueError("Classifier must return a dict with key 'status'!")
             details[folder] = detail_dict
@@ -153,7 +151,7 @@ class WorkdirClassifier:
     def from_root(
         cls,
         root_dir,
-        classifier_func: Callable[..., dict],
+        func: Callable[..., dict],
         *args,
         ignore_patterns=None,
         **kwargs,
@@ -163,11 +161,11 @@ class WorkdirClassifier:
 
         Args:
             root_dir (str): Root directory to search for VASP workdirs.
-            classifier_func (Callable[..., dict]): Function to classify job status.
-                Should take (folder_path, *args, **kwargs) and return a dict with at least 'status' key.
-            *args: Additional positional arguments passed to classifier_func.
+            func (Callable[..., dict]): Function to classify job status.
+                Should take `(folder_path, *args, **kwargs)` and return a dict with at least 'status' key.
+            *args: Additional positional arguments passed to `func`.
             ignore_patterns (list, optional): Patterns to ignore during search.
-            **kwargs: Additional keyword arguments passed to classifier_func.
+            **kwargs: Additional keyword arguments passed to `func`.
 
         Returns:
             WorkdirClassifier: An instance with details populated from the found directories.
@@ -175,7 +173,7 @@ class WorkdirClassifier:
         workdirs = WorkdirFinder.find_workdirs(
             root_dir, ignore_patterns=ignore_patterns
         )
-        return cls(workdirs, classifier_func, *args, **kwargs)
+        return cls(workdirs, func, *args, **kwargs)
 
     @property
     def summary(self):
