@@ -181,6 +181,24 @@ class WorkdirClassifier:
             }
         return cls(details)
 
+    @classmethod
+    def from_root(cls, root_dir, atol=1e-6, ignore_patterns=None):
+        """
+        Create a WorkdirClassifier from a root directory by finding and classifying all VASP workdirs.
+
+        Args:
+            root_dir (str): Root directory to search for VASP workdirs.
+            atol (float): Absolute tolerance for force convergence. Defaults to 1e-6.
+            ignore_patterns (list, optional): Patterns to ignore during search.
+
+        Returns:
+            WorkdirClassifier: An instance with details populated from the found directories.
+        """
+        workdirs = WorkdirFinder.find_workdirs(
+            root_dir, ignore_patterns=ignore_patterns
+        )
+        return cls.from_directories(workdirs, atol=atol)
+
     @property
     def summary(self):
         """
