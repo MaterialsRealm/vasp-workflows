@@ -127,26 +127,15 @@ class Status(StrEnum):
 class WorkdirClassifier:
     """Classifies VASP calculation folders by job status and provides summary and filtering utilities."""
 
-    def __init__(self, details):
+    def __init__(self, directories, atol=1e-6):
         """
-        Args:
-            details (dict): Dictionary mapping folder names to job status details.
-        """
-        self._details = details
-
-    @classmethod
-    def from_directories(cls, directories, atol=1e-6):
-        """
-        Classify a list of directories by VASP job status.
+        Initialize and classify VASP calculation folders by job status.
 
         Args:
             directories (list): List of directory paths to classify.
             atol (float): Absolute tolerance for force convergence. Defaults to 1e-6.
-
-        Returns:
-            WorkdirClassifier: An instance with details populated from the directories.
         """
-        details: dict[str, Any] = {}
+        details = {}
         for folder_path in directories:
             folder = os.path.basename(folder_path.rstrip(os.sep))
             if not os.path.isdir(folder_path) or folder.startswith("."):
@@ -179,7 +168,7 @@ class WorkdirClassifier:
                 "forces_sum": forces_sum,
                 "reason": reason,
             }
-        return cls(details)
+        self._details = details
 
     @classmethod
     def from_root(cls, root_dir, atol=1e-6, ignore_patterns=None):
@@ -197,7 +186,7 @@ class WorkdirClassifier:
         workdirs = WorkdirFinder.find_workdirs(
             root_dir, ignore_patterns=ignore_patterns
         )
-        return cls.from_directories(workdirs, atol=atol)
+        return cls(workdirs, atol=atol)
 
     @property
     def summary(self):
