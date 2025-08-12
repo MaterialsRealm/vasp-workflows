@@ -45,7 +45,7 @@ class PotcarGenerator:
                 )
         return potentials
 
-    def concatenate_potcar_content(self, elements):
+    def concat_potcars(self, elements):
         """Concatenate POTCAR files for given elements using the instance's element-potential mapping.
 
         Args:
@@ -78,7 +78,7 @@ class PotcarGenerator:
         """
         elements = ElementExtractor.from_file(structure_file)
         symbols = [element.name for element in elements]
-        potcar_content = self.concatenate_potcar_content(symbols)
+        potcar_content = self.concat_potcars(symbols)
 
         with open(output_path, "w") as f:
             f.write(potcar_content)
