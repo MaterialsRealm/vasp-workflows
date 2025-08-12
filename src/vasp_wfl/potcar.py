@@ -2,9 +2,7 @@ import os
 
 from .poscar import ElementExtractor
 
-__all__ = [
-    "PotcarGenerator",
-]
+__all__ = ["PotcarGenerator"]
 
 
 class PotcarGenerator:
@@ -20,11 +18,11 @@ class PotcarGenerator:
         self.potential_dir = potential_dir
         self.element_pot_map = element_pot_map
 
-    def find_potentials(self, elements):
-        """Find corresponding VASP potentials for given elements using the instance's element-potential mapping.
+    def locate_potcars(self, elements):
+        """Locate POTCAR file paths for given elements using the instance's element-potential mapping.
 
         Args:
-            elements: Set of element names to find potentials for.
+            elements: Set of element names to locate POTCAR files for.
 
         Returns:
             dict: Dictionary mapping element symbols to their POTCAR file paths.
@@ -58,7 +56,7 @@ class PotcarGenerator:
         Raises:
             FileNotFoundError: If POTCAR file for any element is not found.
         """
-        potcar_map = self.find_potentials(elements)
+        potcar_map = self.locate_potcars(elements)
         potcar_contents = []
         for element in elements:
             potcar_file = potcar_map.get(element)
