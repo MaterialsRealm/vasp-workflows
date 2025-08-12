@@ -165,7 +165,7 @@ class TemplateModifier:
             logger.error(f"Failed to modify '{target_path}': {e}")
             return False
 
-    def render_and_modify(self, target_dir, variables, mode="append"):
+    def render_modify(self, target_dir, variables, mode="append"):
         """
         Render the template with provided variables and modify the target file in the given directory.
 
@@ -195,17 +195,17 @@ def update_incar_templates(template_str, dirs):
     """
     modifier = TemplateModifier(template_str, "INCAR")
     successful_dirs = set()
-    for d in dirs:
-        poscar_path = os.path.join(d, "POSCAR")
+    for dir in dirs:
+        poscar_path = os.path.join(dir, "POSCAR")
         if not os.path.exists(poscar_path):
-            logger.warning(f"POSCAR not found in directory '{d}'. Skipping.")
+            logger.warning(f"POSCAR not found in directory '{dir}'. Skipping.")
             continue
 
         counter = ElementCounter.from_file(poscar_path)
-        system_name = os.path.basename(d)
+        system_name = os.path.basename(dir)
         magmoms = [{"count": count} for count in counter.values()]
         variables = {"system_name": system_name, "magmoms": magmoms}
-        if modifier.render_and_modify(d, variables, "append"):
-            successful_dirs.add(d)
+        if modifier.render_modify(dir, variables, "overwrite"):
+            successful_dirs.add(dir)
 
     return successful_dirs
