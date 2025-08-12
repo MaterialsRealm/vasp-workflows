@@ -134,11 +134,14 @@ class TemplateModifier:
         Returns:
             bool: True if modification was successful, False otherwise.
         """
+        assert mode in ("append", "overwrite"), (
+            "`mode` must be 'append' or 'overwrite'."
+        )
+
         target_path = os.path.join(target_dir, self.target_file)
 
-        try:
-            if mode == "overwrite" and os.path.exists(target_path):
-                # Read original line count and blank with newlines for overwrite mode
+        if mode == "overwrite" and os.path.exists(target_path):
+            try:
                 with open(target_path, "r") as f:
                     lines = f.readlines()
                 num_lines = len(lines)
@@ -146,13 +149,16 @@ class TemplateModifier:
                 with open(target_path, "w") as f:
                     f.write(blank_content)
                 logger.warning(f"Performed intermediate blanking on '{target_path}'.")
+            except Exception as e:
+                logger.error(f"Failed to blank '{target_path}': {e}")
+                return False
 
+        try:
             with open(target_path, "w") as f:
                 f.write(final_content)
-
             if mode == "append":
                 logger.info(f"Appended rendered template to '{target_path}'.")
-            else:
+            else:  # Overwrite
                 logger.warning(f"Overwrote '{target_path}' with rendered template")
             return True
         except Exception as e:
