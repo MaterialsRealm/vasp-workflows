@@ -103,8 +103,7 @@ class WorkdirFinder:
             subdirs[:] = [
                 d
                 for d in subdirs
-                if not d.startswith(".")
-                and not any(fnmatch(d, pattern) for pattern in ignore_patterns)
+                if not d.startswith(".") and not any(fnmatch(d, pattern) for pattern in ignore_patterns)
             ]
             # Check if the current directory is a working directory
             if WorkdirFinder.is_workdir(current_dir):
@@ -170,9 +169,7 @@ class WorkdirClassifier:
         Returns:
             WorkdirClassifier: An instance with details populated from the found directories.
         """
-        workdirs = WorkdirFinder.find_workdirs(
-            root_dir, ignore_patterns=ignore_patterns
-        )
+        workdirs = WorkdirFinder.find_workdirs(root_dir, ignore_patterns=ignore_patterns)
         return cls(workdirs, func, *args, **kwargs)
 
     @property
@@ -186,10 +183,7 @@ class WorkdirClassifier:
         status_list = [v["status"] for v in self._details.values()]
         total = len(status_list)
         counter = Counter(status_list)
-        return {
-            status: counter.get(status, 0) / total if total else 0.0
-            for status in [s.value for s in Status]
-        }
+        return {status: counter.get(status, 0) / total if total else 0.0 for status in [s.value for s in Status]}
 
     @property
     def details(self):
@@ -226,9 +220,7 @@ class WorkdirClassifier:
         Returns:
             list: Folder names with status NOT_CONVERGED.
         """
-        return [
-            k for k, v in self.details.items() if v["status"] == Status.NOT_CONVERGED
-        ]
+        return [k for k, v in self.details.items() if v["status"] == Status.NOT_CONVERGED]
 
     def dump_status(self, filename="status.yaml", key_by="status"):
         """
@@ -258,9 +250,7 @@ class WorkdirClassifier:
             with open(filename, "w") as f:
                 yaml.dump(status_map, f, sort_keys=False)
         else:
-            raise ValueError(
-                "Unsupported file extension: {}. Use .json, .yaml, or .yml".format(ext)
-            )
+            raise ValueError("Unsupported file extension: {}. Use .json, .yaml, or .yml".format(ext))
 
     def to_rerun(self):
         """

@@ -39,9 +39,7 @@ class ResultCollector:
             collector = ResultCollector(root="./vasp_runs")
             collector.collect()
         """
-        status_dict = WorkdirClassifier.from_root(
-            self.root, default_classifier, atol=self.atol
-        ).details
+        status_dict = WorkdirClassifier.from_root(self.root, default_classifier, atol=self.atol).details
         structure_info = {}
 
         for folder, info in status_dict.items():
@@ -161,10 +159,6 @@ class ResultCollector:
         df = pd.DataFrame.from_dict(self.structure_info, orient="index")
         df = df.reset_index().rename(columns={"index": "index"})
         # Expand composition dictionary into columns
-        composition_df = (
-            df["composition"]
-            .apply(lambda x: x if isinstance(x, dict) else {})
-            .apply(pd.Series)
-        )
+        composition_df = df["composition"].apply(lambda x: x if isinstance(x, dict) else {}).apply(pd.Series)
         df = pd.concat([df.drop(columns=["composition"]), composition_df], axis=1)
         return df

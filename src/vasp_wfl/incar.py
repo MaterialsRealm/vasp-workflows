@@ -31,16 +31,10 @@ class TemplateDistributor:
         Args:
             src_files: List of file paths to be distributed to VASP working directories.
         """
-        self.src_files = [
-            os.path.abspath(src_file)
-            for src_file in src_files
-            if os.path.isfile(src_file)
-        ]
+        self.src_files = [os.path.abspath(src_file) for src_file in src_files if os.path.isfile(src_file)]
         for src_file in src_files:
             if not os.path.isfile(src_file):
-                logger.warning(
-                    f"Source file '{src_file}' does not exist and will be skipped."
-                )
+                logger.warning(f"Source file '{src_file}' does not exist and will be skipped.")
 
     def distribute_templates(self, start_dir, overwrite=False):
         """
@@ -63,9 +57,7 @@ class TemplateDistributor:
                 dest_file = os.path.join(work_dir, os.path.basename(src_file))
                 try:
                     if os.path.exists(dest_file) and not overwrite:
-                        logger.info(
-                            f"Skipping '{dest_file}' as it already exists (overwrite=False)."
-                        )
+                        logger.info(f"Skipping '{dest_file}' as it already exists (overwrite=False).")
                         continue
                     shutil.copy2(src_file, dest_file)
                     logger.info(f"Copied '{src_file}' to '{dest_file}'.")
@@ -134,9 +126,7 @@ class TemplateModifier:
         Returns:
             bool: True if modification was successful, False otherwise.
         """
-        assert mode in ("append", "overwrite"), (
-            "`mode` must be 'append' or 'overwrite'."
-        )
+        assert mode in ("append", "overwrite"), "`mode` must be 'append' or 'overwrite'."
 
         target_path = os.path.join(target_dir, self.target_file)
 

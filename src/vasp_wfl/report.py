@@ -38,9 +38,7 @@ def default_classifier(folder_path, atol: float = 1e-6) -> dict:
         else:
             job_status = Status.NOT_CONVERGED
             reason = f"Force sum norm {np.linalg.norm(forces_sum):.3g} >= atol {atol}"
-        forces_sum = [
-            float(f) for f in (forces_sum if forces_sum is not None else [np.nan] * 3)
-        ]
+        forces_sum = [float(f) for f in (forces_sum if forces_sum is not None else [np.nan] * 3)]
 
     return {
         "status": job_status.value,

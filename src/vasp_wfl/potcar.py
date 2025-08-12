@@ -40,9 +40,7 @@ class PotcarGenerator:
             file = os.path.join(self.potential_dir, potential_name, "POTCAR")
             potentials[element] = file
             if not os.path.isfile(file):
-                raise FileNotFoundError(
-                    f"POTCAR file for {element} (potential {potential_name}) not found in {file}"
-                )
+                raise FileNotFoundError(f"POTCAR file for {element} (potential {potential_name}) not found in {file}")
         return potentials
 
     def concat_potcars(self, elements):
@@ -62,9 +60,7 @@ class PotcarGenerator:
         for element in elements:
             potcar_file = potcar_map.get(element)
             if not potcar_file or not os.path.exists(potcar_file):
-                raise FileNotFoundError(
-                    f"POTCAR file for {element} not found: {potcar_file}"
-                )
+                raise FileNotFoundError(f"POTCAR file for {element} not found: {potcar_file}")
             with open(potcar_file, "r") as f:
                 potcar_contents.append(f.read())
         return "".join(potcar_contents)

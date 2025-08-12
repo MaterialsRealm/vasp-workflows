@@ -210,9 +210,7 @@ def mv_contcar_to_poscar(folder):
     if has_poscar:
         if has_contcar:
             existing = [f for f in os.listdir(folder) if re.match(r"POSCAR_\d+$", f)]
-            indices = [
-                int(m.group(1)) for f in existing if (m := re.search(r"_(\d+)$", f))
-            ]
+            indices = [int(m.group(1)) for f in existing if (m := re.search(r"_(\d+)$", f))]
             next_index = max(indices, default=0) + 1
             backup = os.path.join(folder, f"POSCAR_{next_index}")
             print(f"[{folder}] Backing up POSCAR → {backup}")
