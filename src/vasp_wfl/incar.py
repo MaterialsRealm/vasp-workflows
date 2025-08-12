@@ -193,7 +193,7 @@ def update_incar_templates(template_str, dirs):
 
         counter = ElementCounter.from_file(poscar_path)
         system_name = os.path.basename(dir)
-        magmoms = [{"count": count} for count in counter.values()]
+        magmoms = counter.values()
         variables = {"system_name": system_name, "magmoms": magmoms}
         if modifier.render_modify(dir, variables, "overwrite"):
             successful_dirs.add(dir)
