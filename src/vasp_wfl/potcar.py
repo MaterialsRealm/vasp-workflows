@@ -1,4 +1,5 @@
 import os
+from collections import OrderedDict
 
 from .poscar import ElementExtractor
 
@@ -25,12 +26,12 @@ class PotcarGenerator:
             elements: Set of element names to locate POTCAR files for.
 
         Returns:
-            dict: Dictionary mapping element symbols to their POTCAR file paths.
+            OrderedDict: A mapping of element symbols to their POTCAR file paths.
 
         Raises:
             FileNotFoundError: If POTCAR file for any element is not found.
         """
-        potentials = {}
+        potentials = OrderedDict()
         for element in elements:
             if self.element_pot_map:  # `dict` not empty
                 potential_name = self.element_pot_map.get(element, element)
