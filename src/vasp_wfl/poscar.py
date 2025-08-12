@@ -9,10 +9,10 @@ from pymatgen.io.cif import CifParser
 from pymatgen.io.vasp import Poscar
 
 __all__ = [
-    "StructureParser",
-    "ElementExtractor",
     "ElementCounter",
+    "ElementExtractor",
     "SiteExtractor",
+    "StructureParser",
     "SymmetryDetector",
     "cif_to_poscar",
     "mv_contcar_to_poscar",
@@ -64,10 +64,10 @@ class StructureParser:
         file_ext = os.path.splitext(path)[1].lower()
         if file_ext == ".cif":
             return StructureParser.from_cif(path)
-        elif file_ext in ("", ".poscar"):
+        if file_ext in {"", ".poscar"}:
             return StructureParser.from_poscar(path)
-        else:
-            raise ValueError(f"Unsupported file type: '{file_ext}'.")
+        msg = f"Unsupported file type: '{file_ext}'."
+        raise ValueError(msg)
 
 
 class StructureProcessor(ABC):
@@ -188,8 +188,7 @@ def cif_to_poscar(cif_files):
 
 
 def mv_contcar_to_poscar(folder):
-    """
-    Ensure POSCAR exists in the given folder.
+    """Ensure POSCAR exists in the given folder.
 
     Cases:
     - If POSCAR exists:
@@ -223,4 +222,5 @@ def mv_contcar_to_poscar(folder):
         shutil.move(contcar, poscar)
         print(f"[{folder}] No POSCAR found; using CONTCAR as POSCAR.")
     else:
-        raise FileNotFoundError(f"[{folder}] Neither POSCAR nor CONTCAR exists.")
+        msg = f"[{folder}] Neither POSCAR nor CONTCAR exists."
+        raise FileNotFoundError(msg)
