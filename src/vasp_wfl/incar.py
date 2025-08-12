@@ -126,7 +126,7 @@ class TemplateModifier:
         Returns:
             bool: True if modification was successful, False otherwise.
         """
-        assert mode in ("append", "overwrite"), "`mode` must be 'append' or 'overwrite'."
+        assert mode in {"append", "overwrite"}, "`mode` must be 'append' or 'overwrite'."
 
         target_path = os.path.join(target_dir, self.target_file)
 
