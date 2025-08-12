@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import shutil
@@ -18,6 +19,9 @@ __all__ = [
     "SymmetryDetector",
     "cif_to_poscar",
 ]
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class StructureParser:
@@ -217,25 +221,25 @@ class PoscarContcarMover:
                 indices = [int(m.group(1)) for f in existing if (m := re.search(r"_(\\d+)$", f))]
                 next_index = max(indices, default=0) + 1
                 backup = os.path.join(folder, f"POSCAR_{next_index}")
-                print(f"[{folder}] Backing up POSCAR → {backup}")
+                logger.info("Backing up POSCAR → %s in %s", backup, folder)
                 shutil.move(poscar, backup)
                 shutil.move(contcar, poscar)
-                print(f"[{folder}] Replaced POSCAR with CONTCAR.")
+                logger.info("Replaced POSCAR with CONTCAR in %s", folder)
             else:
-                print(f"[{folder}] POSCAR exists; no update needed.")
+                logger.info("POSCAR exists; no update needed in %s", folder)
         elif has_contcar:
             shutil.move(contcar, poscar)
-            print(f"[{folder}] No POSCAR found; using CONTCAR as POSCAR.")
+            logger.info("No POSCAR found; using CONTCAR as POSCAR in %s", folder)
         else:
-            msg = f"[{folder}] Neither POSCAR nor CONTCAR exists."
+            msg = f"Neither POSCAR nor CONTCAR exists in {folder}."
             raise FileNotFoundError(msg)
 
     @classmethod
     def update_rootdir(cls, root_dir, ignore_patterns=None):
         """Recursively update POSCAR in all VASP workdirs under `root_dir`."""
         workdirs = WorkdirFinder.find_workdirs(root_dir, ignore_patterns=ignore_patterns)
-        for workdir in workdirs:
-            try:
-                cls.update_one(workdir)
-            except FileNotFoundError as e:
-                print(e)
+        try:
+            for workdir in workdirs:
+                cls.update_dir(workdir)
+        except FileNotFoundError as e:
+            logger.warning("%s", e)
