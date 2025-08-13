@@ -20,27 +20,25 @@ class VaspWorkflow:
         folders = self.filter_folders()
         for folder in folders:
             self.run(folder)
-        return None
 
     def run(self, folder):
         poscar = os.path.join(self.root, folder, "POSCAR")
         if not os.path.exists(poscar):
             print(f"POSCAR not found in {folder}, skipping.")
-            return None
+            return
         PoscarContcarMover.update_dir(folder)
         run_sh = os.path.join(self.root, folder, "run.sh")
         if os.path.exists(run_sh):
-            subprocess.run(["sbatch", run_sh], cwd=os.path.join(self.root, folder))
+            subprocess.run(["sbatch", run_sh], check=True, cwd=os.path.join(self.root, folder))
         done_txt = os.path.join(self.root, folder, "done.txt")
         with open(done_txt, "w") as _:
             pass  # Creates an empty file
         print(f"Job submitted and done.txt touched for {folder}")
-        return None
+        return
 
     def report_status(self):
         WorkdirClassifier.from_root(self.root, default_classifier).dump_status()
         print("report_status.json written.")
-        return None
 
     def collect_info(self, filename="structure_info.csv"):
         folders = self.filter_folders()
@@ -54,7 +52,6 @@ class VaspWorkflow:
         df = rc.to_dataframe()
         df.to_csv(os.path.join(self.root, filename))
         print(f"{filename} written.")
-        return None
 
 
 @click.group()
@@ -75,7 +72,6 @@ def run_all():
     """
     workflow = VaspWorkflow()
     workflow.run_all()
-    return None
 
 
 @cli.command("run")
@@ -98,7 +94,6 @@ def run(folder):
         workflow.run(folder)
     else:
         workflow.run_all()
-    return None
 
 
 @cli.command("report-status")
@@ -113,7 +108,6 @@ def report_status():
     """
     workflow = VaspWorkflow()
     workflow.report_status()
-    return None
 
 
 @cli.command("collect-info")
@@ -137,4 +131,3 @@ def collect_info(filename):
     """
     workflow = VaspWorkflow()
     workflow.collect_info(filename)
-    return None
