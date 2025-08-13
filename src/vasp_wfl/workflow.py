@@ -5,7 +5,7 @@ import click
 
 from .collect_info import ResultCollector
 from .dirs import WorkdirClassifier
-from .poscar import mv_contcar_to_poscar
+from .poscar import PoscarContcarMover
 from .report import default_classifier
 
 
@@ -27,7 +27,7 @@ class VaspWorkflow:
         if not os.path.exists(poscar):
             print(f"POSCAR not found in {folder}, skipping.")
             return None
-        mv_contcar_to_poscar(folder)
+        PoscarContcarMover.update_dir(folder)
         run_sh = os.path.join(self.root, folder, "run.sh")
         if os.path.exists(run_sh):
             subprocess.run(["sbatch", run_sh], cwd=os.path.join(self.root, folder))
