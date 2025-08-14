@@ -76,15 +76,14 @@ class PotcarGenerator:
         output_path = Path(file).parent / "POTCAR" if not output_path else Path(output_path)
         output_path.write_text(potcar_content, encoding="utf-8")
 
-    def from_files(self, files, output_dir=None):
+    def from_files(self, files):
         """Generate POTCAR files for multiple structure files, using the instance's element-potential mapping.
 
-        For each file, generates a POTCAR in the same directory or specified output directory.
+        For each file, generates a POTCAR in the same directory as the input file.
 
         Args:
             files: List of structure file paths (CIF or POSCAR).
-            output_dir: Directory to write POTCAR files. If None, writes to same directory as input file.
         """
         for file_path in files:
-            output_path = Path(output_dir) / "POTCAR" if output_dir else Path(file_path).parent / "POTCAR"
+            output_path = Path(file_path).parent / "POTCAR"
             self.from_file(file_path, output_path)
