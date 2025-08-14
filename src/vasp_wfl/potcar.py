@@ -1,5 +1,5 @@
-import os
 from collections import OrderedDict
+from pathlib import Path
 
 from .poscar import ElementExtractor
 
@@ -33,14 +33,12 @@ class PotcarGenerator:
         """
         potentials = OrderedDict()
         for element in elements:
-            if self.element_pot_map:  # `dict` not empty
-                potential_name = self.element_pot_map.get(element, element)
-            else:
-                potential_name = element
-            file = os.path.join(self.potential_dir, potential_name, "POTCAR")
+            potential_name = self.element_pot_map.get(element, element) if self.element_pot_map else element
+            file = Path(self.potential_dir) / potential_name / "POTCAR"
             potentials[element] = file
-            if not os.path.isfile(file):
-                raise FileNotFoundError(f"POTCAR file for {element} (potential {potential_name}) not found in {file}")
+            if not file.is_file():
+                msg = f"POTCAR file for {element} (potential {potential_name}) not found in {file}"
+                raise FileNotFoundError(msg)
         return potentials
 
     def concat_potcars(self, elements):
@@ -59,25 +57,24 @@ class PotcarGenerator:
         potcar_contents = []
         for element in elements:
             potcar_file = potcar_map.get(element)
-            if not potcar_file or not os.path.exists(potcar_file):
-                raise FileNotFoundError(f"POTCAR file for {element} not found: {potcar_file}")
-            with open(potcar_file, "r") as f:
-                potcar_contents.append(f.read())
+            if not potcar_file or not Path(potcar_file).exists():
+                msg = f"POTCAR file for {element} not found: {potcar_file}"
+                raise FileNotFoundError(msg)
+            potcar_contents.append(Path(potcar_file).read_text(encoding="ascii"))
         return "".join(potcar_contents)
 
-    def from_file(self, structure_file, output_path):
+    def from_file(self, file, output_path=None):
         """Generate POTCAR from a structure file (CIF or POSCAR), using the instance's element-potential mapping.
 
         Args:
-            structure_file: Path to the structure file (CIF or POSCAR).
-            output_path: Path where POTCAR file will be written.
+            file: Path to the structure file (CIF or POSCAR).
+            output_path: Path where POTCAR file will be written. If `None`, writes to same directory as input file.
         """
-        elements = ElementExtractor.from_file(structure_file)
+        elements = ElementExtractor.from_file(file)
         symbols = [element.name for element in elements]
         potcar_content = self.concat_potcars(symbols)
-
-        with open(output_path, "w") as f:
-            f.write(potcar_content)
+        output_path = Path(file).parent / "POTCAR" if not output_path else Path(output_path)
+        output_path.write_text(potcar_content, encoding="utf-8")
 
     def from_files(self, files, output_dir=None):
         """Generate POTCAR files for multiple structure files, using the instance's element-potential mapping.
@@ -89,9 +86,5 @@ class PotcarGenerator:
             output_dir: Directory to write POTCAR files. If None, writes to same directory as input file.
         """
         for file_path in files:
-            if output_dir:
-                output_path = os.path.join(output_dir, "POTCAR")
-            else:
-                file_dir = os.path.dirname(file_path)
-                output_path = os.path.join(file_dir, "POTCAR")
+            output_path = Path(output_dir) / "POTCAR" if output_dir else Path(file_path).parent / "POTCAR"
             self.from_file(file_path, output_path)
