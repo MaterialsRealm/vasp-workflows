@@ -69,7 +69,7 @@ class StructureParser:
         Raises:
             ValueError: If file type is unsupported.
         """
-        file_ext = os.path.splitext(path)[1].lower()
+        file_ext = Path(path).suffix.lower()
         if file_ext == ".cif":
             return StructureParser.from_cif(path)
         if file_ext in {"", ".poscar"}:
