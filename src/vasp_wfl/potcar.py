@@ -1,9 +1,12 @@
 from collections import OrderedDict
 from pathlib import Path
 
+from pymatgen.io.vasp import Potcar
+
+from .dirs import WorkdirFinder
 from .poscar import ElementExtractor
 
-__all__ = ["PotcarGenerator"]
+__all__ = ["PotcarGenerator", "PotcarValidator"]
 
 
 class PotcarGenerator:
@@ -87,3 +90,73 @@ class PotcarGenerator:
         for file_path in files:
             output_path = Path(file_path).parent / "POTCAR"
             self.from_file(file_path, output_path)
+
+
+class PotcarValidator:
+    """Class for validating POTCAR files against structure files."""
+
+    @classmethod
+    def validate(cls, potcar_file, poscar_file):
+        """Validate that POTCAR symbols match and are in the same order as elements in a POSCAR file.
+
+        Args:
+            potcar_file: Path to the `POTCAR` file.
+            poscar_file: Path to the `POSCAR`/structure file.
+
+        Returns:
+            bool: `True` if the POTCAR symbols match the POSCAR elements, `False` otherwise.
+        """
+        poscar_elements = ElementExtractor.from_file(poscar_file)
+        symbols_from_poscar = [element.name for element in poscar_elements]
+        # Potcar.from_file can read concatenated POTCAR files.
+        # The .symbols attribute returns a list of element symbols in order.
+        potcar = Potcar.from_file(potcar_file)
+        symbols_from_potcar = potcar.symbols
+        return symbols_from_poscar == symbols_from_potcar
+
+    @classmethod
+    def validate_batch(cls, potcar_files, poscar_files):
+        """Validate that each POTCAR in a list matches the corresponding POSCAR.
+
+        Args:
+            potcar_files (list): A list of paths to POTCAR files.
+            poscar_files (list): A list of paths to POSCAR files.
+
+        Returns:
+            bool: `True` if all pairs are valid, `False` otherwise.
+
+        Raises:
+            ValueError: If the lists of files have different lengths.
+        """
+        if len(potcar_files) != len(poscar_files):
+            msg = f"The number of POTCAR files ({len(potcar_files)}) and POSCAR files ({len(poscar_files)}) must equal."
+            raise ValueError(msg)
+
+        return all(map(cls.validate, potcar_files, poscar_files))
+
+    @classmethod
+    def validate_from_root(cls, root_dir, **kwargs):
+        """Find and validate all POTCAR/POSCAR pairs in subdirectories.
+
+        Args:
+            root_dir (str or Path): The root directory to start the search from.
+            **kwargs: Keyword arguments passed to `WorkdirFinder.find_workdirs`.
+
+        Returns:
+            bool: `True` if all found POTCAR/POSCAR pairs are valid. Returns `True` if no
+                  such pairs are found. Returns `False` if any pair is invalid.
+        """
+        workdirs = WorkdirFinder.find_workdirs(root_dir, **kwargs)
+        pairs_to_check = []
+        for workdir_str in workdirs:
+            workdir = Path(workdir_str)
+            potcar_path = workdir / "POTCAR"
+            poscar_path = workdir / "POSCAR"
+            if potcar_path.exists() and poscar_path.exists():
+                pairs_to_check.append((potcar_path, poscar_path))
+
+        if not pairs_to_check:
+            return True
+
+        potcars, poscars = zip(*pairs_to_check, strict=True)
+        return cls.validate_batch(list(potcars), list(poscars))
