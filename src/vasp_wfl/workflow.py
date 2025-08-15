@@ -10,8 +10,8 @@ from .report import default_classifier
 
 
 class VaspWorkflow:
-    def __init__(self, root=os.getcwd()):
-        self.root = root
+    def __init__(self, root=None):
+        self.root = root or os.getcwd()
 
     def filter_folders(self):
         return WorkdirClassifier.from_root(self.root, default_classifier).to_rerun()
