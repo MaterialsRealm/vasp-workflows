@@ -4,6 +4,7 @@ import re
 import shutil
 from abc import ABC, abstractmethod
 from collections import Counter
+from pathlib import Path
 
 from ase.io import read, write
 from pymatgen.io.cif import CifParser
@@ -51,7 +52,8 @@ class StructureParser:
         Returns:
             pymatgen.Structure: Parsed structure.
         """
-        poscar = Poscar.from_file(poscar_file)
+        content = Path(poscar_file).read_text(encoding="ascii")
+        poscar = Poscar.from_str(content)  # FIXME: `from_file` will parse wrongly!
         return poscar.structure
 
     @staticmethod
