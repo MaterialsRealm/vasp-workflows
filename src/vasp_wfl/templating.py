@@ -1,5 +1,5 @@
-import os
 import shutil
+from pathlib import Path
 
 import pystache
 
@@ -18,9 +18,9 @@ class TemplateDistributor:
         Args:
             src_files: List of file paths to be distributed to VASP working directories.
         """
-        self.src_files = [os.path.abspath(src_file) for src_file in src_files if os.path.isfile(src_file)]
+        self.src_files = [str(Path(src_file).resolve()) for src_file in src_files if Path(src_file).is_file()]
         for src_file in src_files:
-            if not os.path.isfile(src_file):
+            if not Path(src_file).is_file():
                 LOGGER.warning(f"Source file '{src_file}' does not exist and will be skipped.")
 
     def distribute_templates(self, start_dir, overwrite=False):
@@ -40,9 +40,9 @@ class TemplateDistributor:
         for work_dir in work_dirs:
             copied_files = False
             for src_file in self.src_files:
-                dest_file = os.path.join(work_dir, os.path.basename(src_file))
+                dest_file = Path(work_dir) / Path(src_file).name
                 try:
-                    if os.path.exists(dest_file) and not overwrite:
+                    if dest_file.exists() and not overwrite:
                         LOGGER.info(f"Skipping '{dest_file}' as it already exists (overwrite=False).")
                         continue
                     shutil.copy2(src_file, dest_file)
@@ -82,18 +82,18 @@ class TemplateModifier:
         Returns:
             str: The final content to write to the file.
         """
-        target_path = os.path.join(target_dir, self.target_file)
+        target_path = Path(target_dir) / self.target_file
         rendered = pystache.render(self.template, variables)
 
         if mode == "append":
-            if os.path.exists(target_path):
-                with open(target_path) as f:
-                    existing = f.read()
+            if target_path.exists():
+                existing = target_path.read_text(encoding="ascii")
                 return existing + "\n" + rendered
             return rendered
         if mode == "overwrite":
             return rendered
-        raise ValueError("Invalid mode; must be 'append' or 'overwrite'.")
+        msg = f"{mode} is invalid; must be 'append' or 'overwrite'."
+        raise ValueError(msg)
 
     def modify(self, target_dir, final_content, mode="append"):
         """Write the final content to the target file in the given directory.
@@ -108,30 +108,27 @@ class TemplateModifier:
         """
         assert mode in {"append", "overwrite"}, "`mode` must be 'append' or 'overwrite'."
 
-        target_path = os.path.join(target_dir, self.target_file)
+        target_path = Path(target_dir) / self.target_file
 
-        if mode == "overwrite" and os.path.exists(target_path):
+        if mode == "overwrite" and target_path.exists():
             try:
-                with open(target_path) as f:
-                    lines = f.readlines()
+                lines = target_path.read_text(encoding="ascii").splitlines(True)
                 num_lines = len(lines)
                 blank_content = "\n" * num_lines
-                with open(target_path, "w") as f:
-                    f.write(blank_content)
+                target_path.write_text(blank_content, encoding="ascii")
                 LOGGER.warning(f"Performed intermediate blanking on '{target_path}'.")
-            except Exception as e:
+            except OSError as e:
                 LOGGER.error(f"Failed to blank '{target_path}': {e}")
                 return False
 
         try:
-            with open(target_path, "w") as f:
-                f.write(final_content)
+            target_path.write_text(final_content, encoding="ascii")
             if mode == "append":
                 LOGGER.info(f"Appended rendered template to '{target_path}'.")
             else:  # Overwrite
                 LOGGER.warning(f"Overwrote '{target_path}' with rendered template")
             return True
-        except Exception as e:
+        except OSError as e:
             LOGGER.error(f"Failed to modify '{target_path}': {e}")
             return False
 

@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 from .logger import LOGGER
 from .poscar import ElementCounter
@@ -21,16 +21,16 @@ def update_incar_templates(template_str, dirs):
     modifier = TemplateModifier(template_str, "INCAR")
     successful_dirs = set()
     for dir in dirs:
-        poscar_path = os.path.join(dir, "POSCAR")
-        if not os.path.exists(poscar_path):
+        dir_path = Path(dir)
+        poscar_path = dir_path / "POSCAR"
+        if not poscar_path.exists():
             LOGGER.warning(f"POSCAR not found in directory '{dir}'. Skipping.")
             continue
 
         counter = ElementCounter.from_file(poscar_path)
-        system_name = os.path.basename(dir)
         magmoms = counter.values()
-        variables = {"system_name": system_name, "magmoms": magmoms}
-        if modifier.render_modify(dir, variables, "overwrite"):
+        variables = {"system_name": dir_path.name, "magmoms": magmoms}
+        if modifier.render_modify(dir_path, variables, "overwrite"):
             successful_dirs.add(dir)
 
     return successful_dirs
