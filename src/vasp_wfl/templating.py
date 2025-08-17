@@ -1,15 +1,12 @@
-import logging
 import os
 import shutil
 
 import pystache
 
 from .dirs import WorkdirFinder
+from .logger import LOGGER
 
 __all__ = ["TemplateDistributor", "TemplateModifier"]
-
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-logger = logging.getLogger(__name__)
 
 
 class TemplateDistributor:
@@ -24,7 +21,7 @@ class TemplateDistributor:
         self.src_files = [os.path.abspath(src_file) for src_file in src_files if os.path.isfile(src_file)]
         for src_file in src_files:
             if not os.path.isfile(src_file):
-                logger.warning(f"Source file '{src_file}' does not exist and will be skipped.")
+                LOGGER.warning(f"Source file '{src_file}' does not exist and will be skipped.")
 
     def distribute_templates(self, start_dir, overwrite=False):
         """Copy the specified source files to all VASP working directories found under the start directory.
@@ -46,13 +43,13 @@ class TemplateDistributor:
                 dest_file = os.path.join(work_dir, os.path.basename(src_file))
                 try:
                     if os.path.exists(dest_file) and not overwrite:
-                        logger.info(f"Skipping '{dest_file}' as it already exists (overwrite=False).")
+                        LOGGER.info(f"Skipping '{dest_file}' as it already exists (overwrite=False).")
                         continue
                     shutil.copy2(src_file, dest_file)
-                    logger.info(f"Copied '{src_file}' to '{dest_file}'.")
+                    LOGGER.info(f"Copied '{src_file}' to '{dest_file}'.")
                     copied_files = True
                 except (PermissionError, OSError) as e:
-                    logger.error(f"Failed to copy '{src_file}' to '{dest_file}': {e}")
+                    LOGGER.error(f"Failed to copy '{src_file}' to '{dest_file}': {e}")
             if copied_files:
                 successful_dirs.add(work_dir)
 
@@ -121,21 +118,21 @@ class TemplateModifier:
                 blank_content = "\n" * num_lines
                 with open(target_path, "w") as f:
                     f.write(blank_content)
-                logger.warning(f"Performed intermediate blanking on '{target_path}'.")
+                LOGGER.warning(f"Performed intermediate blanking on '{target_path}'.")
             except Exception as e:
-                logger.error(f"Failed to blank '{target_path}': {e}")
+                LOGGER.error(f"Failed to blank '{target_path}': {e}")
                 return False
 
         try:
             with open(target_path, "w") as f:
                 f.write(final_content)
             if mode == "append":
-                logger.info(f"Appended rendered template to '{target_path}'.")
+                LOGGER.info(f"Appended rendered template to '{target_path}'.")
             else:  # Overwrite
-                logger.warning(f"Overwrote '{target_path}' with rendered template")
+                LOGGER.warning(f"Overwrote '{target_path}' with rendered template")
             return True
         except Exception as e:
-            logger.error(f"Failed to modify '{target_path}': {e}")
+            LOGGER.error(f"Failed to modify '{target_path}': {e}")
             return False
 
     def render_modify(self, target_dir, variables, mode="append"):

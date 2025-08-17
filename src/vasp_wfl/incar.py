@@ -1,5 +1,6 @@
 import os
 
+from .logger import LOGGER
 from .poscar import ElementCounter
 from .templating import TemplateModifier
 
@@ -22,7 +23,7 @@ def update_incar_templates(template_str, dirs):
     for dir in dirs:
         poscar_path = os.path.join(dir, "POSCAR")
         if not os.path.exists(poscar_path):
-            logger.warning(f"POSCAR not found in directory '{dir}'. Skipping.")
+            LOGGER.warning(f"POSCAR not found in directory '{dir}'. Skipping.")
             continue
 
         counter = ElementCounter.from_file(poscar_path)
