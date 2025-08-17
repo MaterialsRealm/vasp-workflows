@@ -23,12 +23,12 @@ class TemplateDistributor:
             if not Path(src_file).is_file():
                 LOGGER.warning(f"Source file '{src_file}' does not exist and will be skipped.")
 
-    def distribute_templates(self, start_dir, overwrite=False):
-        """Copy the specified source files to all VASP working directories found under the start directory.
+    def __call__(self, start_dir, *, overwrite=False):
+        """Copies the specified source files to all VASP working directories found under `start_dir`.
 
         Args:
             start_dir: Path to the starting directory for recursive search of VASP working directories.
-            overwrite: If True, overwrite existing files in target directories; if False, skip them.
+            overwrite: If True, overwrite existing files in target directories; if False, skip them. Must be passed as a keyword argument. Defaults to False.
 
         Returns:
             set: Set of VASP working directory paths where files were successfully copied.
