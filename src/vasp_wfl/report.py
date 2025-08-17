@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import numpy as np
 
@@ -9,8 +9,7 @@ __all__ = ["default_classifier"]
 
 
 def default_classifier(folder_path, atol: float = 1e-6) -> dict:
-    """
-    Default classification function for VASP calculation status.
+    """Default classification function for VASP calculation status.
 
     Args:
         folder_path (str): Path to the VASP calculation folder.
@@ -21,8 +20,8 @@ def default_classifier(folder_path, atol: float = 1e-6) -> dict:
         dict: Dictionary with at least 'status' key, and optionally other keys like
               'forces_sum', 'reason', etc.
     """
-    outcar = os.path.join(folder_path, "OUTCAR")
-    if not os.path.exists(outcar):
+    outcar = Path(folder_path) / "OUTCAR"
+    if not outcar.exists():
         forces_sum = [np.nan, np.nan, np.nan]
         job_status = Status.PENDING
         reason = "OUTCAR missing"
