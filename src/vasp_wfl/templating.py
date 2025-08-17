@@ -35,12 +35,12 @@ class TemplateDistributor:
         """
         # Initialize VaspDirFinder to locate working directories
         finder = WorkdirFinder()
-        work_dirs = finder.find_workdirs(start_dir)
+        workdirs = finder.find_workdirs(start_dir)
         successful_dirs = set()
-        for work_dir in work_dirs:
+        for workdir in workdirs:
             copied_files = False
             for src_file in self.src_files:
-                dest_file = Path(work_dir) / Path(src_file).name
+                dest_file = Path(workdir) / Path(src_file).name
                 try:
                     if dest_file.exists() and not overwrite:
                         LOGGER.info(f"Skipping '{dest_file}' as it already exists (overwrite=False).")
@@ -51,7 +51,7 @@ class TemplateDistributor:
                 except (PermissionError, OSError) as e:
                     LOGGER.error(f"Failed to copy '{src_file}' to '{dest_file}': {e}")
             if copied_files:
-                successful_dirs.add(work_dir)
+                successful_dirs.add(workdir)
 
         return successful_dirs
 
