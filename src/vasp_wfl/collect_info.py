@@ -1,5 +1,5 @@
 import json
-import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -7,6 +7,7 @@ import pandas as pd
 from .cell import count_elements, get_energies, get_volume
 from .dirs import WorkdirClassifier
 from .magnetization import MagnetizationParser
+from .poscar import ElementCounter
 from .report import Status, default_classifier
 
 __all__ = ["ResultCollector"]
@@ -22,7 +23,7 @@ class ResultCollector:
             atol (float):
                 Absolute tolerance for energy comparison. Defaults to 1e-6.
         """
-        self.root = root
+        self.root = Path(root)
         self.atol = atol
         self.structure_info = None
 
@@ -44,23 +45,23 @@ class ResultCollector:
 
         for folder, info in status_dict.items():
             if info["status"] == Status.DONE:
-                contcar_path = os.path.join(self.root, folder, "CONTCAR")
-                abs_path = os.path.abspath(contcar_path)
-                outcar_path = os.path.join(self.root, folder, "OUTCAR")
-                oszicar_path = os.path.join(self.root, folder, "OSZICAR")
+                contcar_path = self.root / folder / "CONTCAR"
+                abs_path = str(contcar_path.resolve())
+                outcar_path = self.root / folder / "OUTCAR"
+                oszicar_path = self.root / folder / "OSZICAR"
 
                 tot_mag_outcar = None
                 tot_mag_oszicar = None
                 free_energy, internal_energy = None, None
 
-                if os.path.exists(outcar_path):
-                    tot_mag_outcar = MagnetizationParser.from_outcar(outcar_path)
+                if outcar_path.exists():
+                    tot_mag_outcar = MagnetizationParser.from_outcar(str(outcar_path))
 
-                if os.path.exists(oszicar_path):
-                    tot_mag_oszicar = MagnetizationParser.from_oszicar(oszicar_path)
-                    free_energy, internal_energy = get_energies(oszicar_path)
+                if oszicar_path.exists():
+                    tot_mag_oszicar = MagnetizationParser.from_oszicar(str(oszicar_path))
+                    free_energy, internal_energy = get_energies(str(oszicar_path))
 
-                if not os.path.exists(contcar_path):
+                if not contcar_path.exists():
                     structure_info[folder] = {
                         "abs_path": abs_path,
                         "volume": np.nan,
@@ -74,7 +75,7 @@ class ResultCollector:
                     continue
                 try:
                     volume = get_volume(contcar_path)
-                    composition = count_elements(contcar_path)
+                    composition = ElementCounter.from_file(contcar_path)
                 except Exception as e:
                     structure_info[folder] = {
                         "abs_path": abs_path,
@@ -123,8 +124,7 @@ class ResultCollector:
                 return None
             return o
 
-        with open(output, "w") as f:
-            json.dump(self.structure_info, f, indent=2, default=safe)
+        Path(output).write_text(json.dumps(self.structure_info, indent=2, default=safe))
 
     def to_dict(self):
         """Returns the collected structure information as a dictionary.
