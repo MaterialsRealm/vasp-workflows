@@ -17,6 +17,8 @@ Use the conventional commit format for clear, structured commit messages:
 [optional footer(s)]
 ```
 
+Print the commit message in a codeblock wrapped by 3 backticks.
+
 ### Commit Types
 
 - **feat**: A new feature for the user
