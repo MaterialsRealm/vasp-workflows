@@ -46,6 +46,7 @@ class ResultCollector:
         for folder, info in status_dict.items():
             if info["status"] == WorkStatus.DONE:
                 contcar_path = self.root / folder / "CONTCAR"
+                poscar_path = self.root / folder / "POSCAR"
                 abs_path = str(contcar_path.resolve())
                 outcar_path = self.root / folder / "OUTCAR"
                 oszicar_path = self.root / folder / "OSZICAR"
@@ -61,7 +62,13 @@ class ResultCollector:
                     tot_mag_oszicar = MagnetizationParser.from_oszicar(oszicar_path)
                     free_energy, internal_energy = get_energies(oszicar_path)
 
-                if not contcar_path.exists():
+                # Check for CONTCAR, fallback to POSCAR if missing
+                structure_file = None
+                if contcar_path.exists():
+                    structure_file = contcar_path
+                elif poscar_path.exists():
+                    structure_file = poscar_path
+                if structure_file is None:
                     structure_info[folder] = {
                         "abs_path": abs_path,
                         "volume": np.nan,
@@ -74,8 +81,8 @@ class ResultCollector:
                     }
                     continue
                 try:
-                    volume = get_volume(contcar_path)
-                    composition = ElementCounter.from_file(contcar_path)
+                    volume = get_volume(structure_file)
+                    composition = ElementCounter.from_file(structure_file)
                 except Exception as e:
                     structure_info[folder] = {
                         "abs_path": abs_path,
@@ -85,7 +92,7 @@ class ResultCollector:
                         "tot_mag_oszicar": tot_mag_oszicar,
                         "F": free_energy,
                         "E0": internal_energy,
-                        "reason": f"Failed to parse CONTCAR: {e}",
+                        "reason": f"Failed to parse structure file: {e}",
                     }
                 else:
                     structure_info[folder] = {
