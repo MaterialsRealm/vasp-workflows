@@ -1,9 +1,9 @@
 import json
-import os
 from collections import Counter
 from collections.abc import Callable
 from enum import StrEnum
 from fnmatch import fnmatch
+from pathlib import Path
 
 import yaml
 
@@ -41,21 +41,22 @@ class WorkdirFinder:
     """A class for identifying VASP working directories based on the presence of specific input files."""
 
     @staticmethod
-    def is_workdir(dir_path) -> bool:
+    def is_workdir(directory) -> bool:
         """Determine if a given directory is a VASP working directory by checking for the presence
         of any VASP input files (without recursing into subdirectories).
 
         Args:
-            dir_path: Path to the directory to check.
+            directory: Path to the directory to check.
 
         Returns:
             bool: True if the directory contains at least one VASP input file, False otherwise.
         """
-        if not os.path.isdir(dir_path):
+        path = Path(directory)
+        if not path.is_dir():
             return False
         try:
-            files = os.listdir(dir_path)
-        except Exception:
+            files = [f.name for f in path.iterdir() if f.is_file()]
+        except OSError:
             return False
         for file in files:
             if file in VASP_INPUT_FILES:
@@ -82,17 +83,27 @@ class WorkdirFinder:
 
         Hidden directories (starting with '.') are excluded from traversal.
 
+        This implementation uses `pathlib.Path.walk` (available in Python 3.12+).
+
         Args:
             start_dir: Path to the starting directory for recursive search.
             ignore_patterns: List of patterns to ignore (uses fnmatch syntax, e.g., ['*backup*', 'temp_*']).
 
         Returns:
             set: Set of VASP working directory paths (absolute paths).
+
+        Raises:
+            RuntimeError: If run on a Python version older than 3.12 where `Path.walk` is not available.
         """
         workdirs = set()
         ignore_patterns = ignore_patterns or []
 
-        for current_dir, subdirs, files in os.walk(start_dir, topdown=True):
+        start_path = Path(start_dir)
+        if not hasattr(start_path, "walk"):
+            msg = "Use Python 3.12+ to run this function!"
+            raise RuntimeError(msg)
+
+        for current_dir, subdirs, _ in start_path.walk():
             # Exclude hidden subdirectories and pattern-matched directories from further traversal
             subdirs[:] = [
                 d
@@ -101,7 +112,7 @@ class WorkdirFinder:
             ]
             # Check if the current directory is a working directory
             if WorkdirFinder.is_workdir(current_dir):
-                workdirs.add(os.path.abspath(current_dir))
+                workdirs.add(Path(current_dir).resolve())
 
         return workdirs
 
@@ -128,15 +139,16 @@ class WorkdirClassifier:
             **kwargs: Additional keyword arguments passed to `func`.
         """
         details = {}
-        for folder_path in directories:
-            folder = os.path.basename(folder_path.rstrip(os.sep))
-            if not os.path.isdir(folder_path) or folder.startswith("."):
+        for directory in directories:
+            folder = Path(directory).name
+            if not Path(directory).is_dir() or folder.startswith("."):
                 continue
 
-            detail_dict = func(folder_path, *args, **kwargs)
-            if not isinstance(detail_dict, dict) or "status" not in detail_dict:
-                raise ValueError("Classifier must return a dict with key 'status'!")
-            details[folder] = detail_dict
+            subdetails = func(directory, *args, **kwargs)
+            if not isinstance(subdetails, dict) or "status" not in subdetails:
+                msg = "Classifier must return a dict with key 'status'!"
+                raise ValueError(msg)
+            details[folder] = subdetails
         self._details = details
 
     @classmethod
@@ -151,7 +163,7 @@ class WorkdirClassifier:
         """Create a WorkdirClassifier from a root directory by finding and classifying all VASP workdirs.
 
         Args:
-            root_dir (str): Root directory to search for VASP workdirs.
+            root_dir: Root directory to search for VASP workdirs.
             func (Callable[..., dict]): Function to classify job status.
                 Should take `(folder_path, *args, **kwargs)` and return a dict with at least 'status' key.
             *args: Additional positional arguments passed to `func`.
@@ -227,16 +239,19 @@ class WorkdirClassifier:
                 status = v["status"]
                 status_map.setdefault(status, []).append(k)
         else:
-            raise ValueError("key_by must be 'folder' or 'status'.")
-        ext = os.path.splitext(filename)[1].lower()
+            msg = "key_by must be 'folder' or 'status'."
+            raise ValueError(msg)
+        ext = Path(filename).suffix.lower()
+        path = Path(filename)
         if ext == ".json":
-            with open(filename, "w") as f:
+            with path.open("w", encoding="utf-8") as f:
                 json.dump(status_map, f, indent=2)
-        elif ext in (".yaml", ".yml"):
-            with open(filename, "w") as f:
+        elif ext in {".yaml", ".yml"}:
+            with path.open("w", encoding="utf-8") as f:
                 yaml.dump(status_map, f, sort_keys=False)
         else:
-            raise ValueError(f"Unsupported file extension: {ext}. Use .json, .yaml, or .yml")
+            msg = f"Unsupported file extension: {ext}. Use .json, .yaml, or .yml"
+            raise ValueError(msg)
 
     def to_rerun(self):
         """Generate a list of folders that need to be rerun based on their status.
