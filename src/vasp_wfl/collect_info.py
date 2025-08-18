@@ -8,7 +8,7 @@ from .cell import get_energies, get_volume
 from .dirs import WorkdirClassifier
 from .magnetization import MagnetizationParser
 from .poscar import ElementCounter
-from .report import Status, default_classifier
+from .report import WorkStatus, default_classifier
 
 __all__ = ["ResultCollector"]
 
@@ -44,7 +44,7 @@ class ResultCollector:
         structure_info = {}
 
         for folder, info in status_dict.items():
-            if info["status"] == Status.DONE:
+            if info["status"] == WorkStatus.DONE:
                 contcar_path = self.root / folder / "CONTCAR"
                 abs_path = str(contcar_path.resolve())
                 outcar_path = self.root / folder / "OUTCAR"

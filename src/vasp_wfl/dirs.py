@@ -117,8 +117,8 @@ class WorkdirFinder:
         return workdirs
 
 
-class Status(StrEnum):
-    """Enumeration of possible job statuses for VASP calculations."""
+class WorkStatus(StrEnum):
+    """Enumeration of possible work statuses for VASP calculations."""
 
     PENDING = "PENDING"
     DONE = "DONE"
@@ -126,14 +126,14 @@ class Status(StrEnum):
 
 
 class WorkdirClassifier:
-    """Classifies VASP calculation folders by job status and provides summary and filtering utilities."""
+    """Classifies VASP calculation folders by work status and provides summary and filtering utilities."""
 
     def __init__(self, directories, func: Callable[..., dict], *args, **kwargs):
-        """Initialize and classify VASP calculation folders by job status.
+        """Initialize and classify VASP calculation folders by work status.
 
         Args:
             directories (list): List of directory paths to classify.
-            func (Callable[..., dict]): Function to classify job status.
+            func (Callable[..., dict]): Function to classify work status.
                 Should take `(folder_path, *args, **kwargs)` and return a dict with at least 'status' key.
             *args: Additional positional arguments passed to `func`.
             **kwargs: Additional keyword arguments passed to `func`.
@@ -164,7 +164,7 @@ class WorkdirClassifier:
 
         Args:
             root_dir: Root directory to search for VASP workdirs.
-            func (Callable[..., dict]): Function to classify job status.
+            func (Callable[..., dict]): Function to classify work status.
                 Should take `(folder_path, *args, **kwargs)` and return a dict with at least 'status' key.
             *args: Additional positional arguments passed to `func`.
             ignore_patterns (list, optional): Patterns to ignore during search.
@@ -178,48 +178,48 @@ class WorkdirClassifier:
 
     @property
     def summary(self):
-        """Compute the fraction of jobs in each status.
+        """Compute the fraction of works in each status.
 
         Returns:
-            dict: Mapping of job status to fraction of jobs in that status.
+            dict: Mapping of work status to fraction of works in that status.
         """
         status_list = [v["status"] for v in self._details.values()]
         total = len(status_list)
         counter = Counter(status_list)
-        return {status: counter.get(status, 0) / total if total else 0.0 for status in [s.value for s in Status]}
+        return {status: counter.get(status, 0) / total if total else 0.0 for status in [s.value for s in WorkStatus]}
 
     @property
     def details(self):
         """Get the raw details dictionary.
 
         Returns:
-            dict: Folder details with job status, force sum, and reason.
+            dict: Folder details with work status, force sum, and reason.
         """
         return self._details
 
     def list_pending(self):
-        """List folders with PENDING status.
+        """List folders with `PENDING` status.
 
         Returns:
-            list: Folder names with status PENDING.
+            list: Folder names with status `PENDING`.
         """
-        return [k for k, v in self.details.items() if v["status"] == Status.PENDING]
+        return [k for k, v in self.details.items() if v["status"] == WorkStatus.PENDING]
 
     def list_done(self):
-        """List folders with DONE status.
+        """List folders with `DONE` status.
 
         Returns:
-            list: Folder names with status DONE.
+            list: Folder names with status `DONE`.
         """
-        return [k for k, v in self.details.items() if v["status"] == Status.DONE]
+        return [k for k, v in self.details.items() if v["status"] == WorkStatus.DONE]
 
     def list_incomplete(self):
-        """List folders with NOT_CONVERGED status.
+        """List folders with `NOT_CONVERGED` status.
 
         Returns:
-            list: Folder names with status NOT_CONVERGED.
+            list: Folder names with status `NOT_CONVERGED`.
         """
-        return [k for k, v in self.details.items() if v["status"] == Status.NOT_CONVERGED]
+        return [k for k, v in self.details.items() if v["status"] == WorkStatus.NOT_CONVERGED]
 
     def dump_status(self, filename="status.yaml", key_by="status"):
         """Dump the folder status to a JSON or YAML file, format determined by file extension.
