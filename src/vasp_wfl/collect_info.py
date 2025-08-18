@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .cell import count_elements, get_energies, get_volume
+from .cell import get_energies, get_volume
 from .dirs import WorkdirClassifier
 from .magnetization import MagnetizationParser
 from .poscar import ElementCounter
