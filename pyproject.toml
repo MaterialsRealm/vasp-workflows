@@ -7,7 +7,7 @@ name = "vasp-workflows"
 version = "0.1.0"
 description = "VASP workflows used in our group"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "ase>=3.25.0",
     "click>=8",
