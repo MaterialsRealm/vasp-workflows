@@ -6,7 +6,7 @@ import click
 from .collect_info import ResultCollector
 from .dirs import WorkdirClassifier
 from .poscar import PoscarContcarMover
-from .report import default_classifier
+from .report import classify_by_force
 
 
 class VaspWorkflow:
@@ -14,7 +14,7 @@ class VaspWorkflow:
         self.root = root or os.getcwd()
 
     def filter_folders(self):
-        return WorkdirClassifier.from_root(self.root, default_classifier).to_rerun()
+        return WorkdirClassifier.from_root(self.root, classify_by_force).to_rerun()
 
     def run_all(self):
         folders = self.filter_folders()
@@ -37,7 +37,7 @@ class VaspWorkflow:
         return
 
     def report_status(self):
-        WorkdirClassifier.from_root(self.root, default_classifier).dump_status()
+        WorkdirClassifier.from_root(self.root, classify_by_force).dump_status()
         print("report_status.json written.")
 
     def collect_info(self, filename="structure_info.csv"):

@@ -5,10 +5,10 @@ import numpy as np
 from .dirs import WorkStatus
 from .force import parse_forces_and_check_zero
 
-__all__ = ["default_classifier"]
+__all__ = ["classify_by_force"]
 
 
-def default_classifier(folder_path, atol: float = 1e-6) -> dict:
+def classify_by_force(folder_path, atol: float = 1e-6) -> dict:
     """Default classification function for VASP calculation status.
 
     Args:

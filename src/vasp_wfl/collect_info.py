@@ -8,7 +8,7 @@ from .cell import get_energies, get_volume
 from .dirs import WorkdirClassifier
 from .magnetization import MagnetizationParser
 from .poscar import ElementCounter
-from .report import WorkStatus, default_classifier
+from .report import WorkStatus, classify_by_force
 
 __all__ = ["ResultCollector"]
 
@@ -40,7 +40,7 @@ class ResultCollector:
             collector = ResultCollector(root="./vasp_runs")
             collector.collect()
         """
-        status_dict = WorkdirClassifier.from_root(self.root, default_classifier, atol=self.atol).details
+        status_dict = WorkdirClassifier.from_root(self.root, classify_by_force, atol=self.atol).details
         structure_info = {}
 
         for folder, info in status_dict.items():
