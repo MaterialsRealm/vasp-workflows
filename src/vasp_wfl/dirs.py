@@ -9,36 +9,36 @@ import yaml
 
 __all__ = ["WorkdirClassifier", "WorkdirFinder"]
 
+VASP_INPUT_FILES = {
+    "CHGCAR",
+    "DYNMATFULL",
+    "GAMMA",
+    "ICONST",
+    "INCAR",
+    "KPOINTS",
+    "KPOINTS_OPT",
+    "KPOINTS_WAN",
+    "ML_AB",
+    "ML_FF",
+    "PENALTYPOT",
+    "POSCAR",
+    "POTCAR",
+    "QPOINTS",
+    "Vasp.lock",
+    "Vaspin.h5",
+    "WANPROJ",
+    "WAVECAR",
+    "WAVEDER",
+    "STOPCAR",
+}
+"""
+Set of fixed-name VASP input files for detection. Temporary files with patterns
+(e.g., WFULLxxxx.tmp, Wxxxx.tmp) are handled separately using pattern matching.
+"""
+
 
 class WorkdirFinder:
     """A class for identifying VASP working directories based on the presence of specific input files."""
-
-    INPUT_FILES = {
-        "CHGCAR",
-        "DYNMATFULL",
-        "GAMMA",
-        "ICONST",
-        "INCAR",
-        "KPOINTS",
-        "KPOINTS_OPT",
-        "KPOINTS_WAN",
-        "ML_AB",
-        "ML_FF",
-        "PENALTYPOT",
-        "POSCAR",
-        "POTCAR",
-        "QPOINTS",
-        "Vasp.lock",
-        "Vaspin.h5",
-        "WANPROJ",
-        "WAVECAR",
-        "WAVEDER",
-        "STOPCAR",
-    }
-    """
-    Set of fixed-name VASP input files for detection. Temporary files with patterns
-    (e.g., WFULLxxxx.tmp, Wxxxx.tmp) are handled separately using pattern matching.
-    """
 
     @staticmethod
     def is_workdir(dir_path) -> bool:
@@ -58,7 +58,7 @@ class WorkdirFinder:
         except Exception:
             return False
         for file in files:
-            if file in WorkdirFinder.INPUT_FILES:
+            if file in VASP_INPUT_FILES:
                 return True
             if fnmatch(file, "WFULL????.tmp") or fnmatch(file, "W????.tmp"):
                 return True
