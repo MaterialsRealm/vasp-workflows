@@ -5,8 +5,8 @@ import click
 
 from .collect_info import ResultCollector
 from .dirs import WorkdirClassifier
+from .force import classify_by_force
 from .poscar import PoscarContcarMover
-from .report import classify_by_force
 
 
 class VaspWorkflow:
