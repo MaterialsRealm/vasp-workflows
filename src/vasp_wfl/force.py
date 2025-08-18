@@ -4,11 +4,11 @@ import numpy as np
 
 from .dirs import WorkStatus
 
-__all__ = ["parse_forces_and_check_zero"]
+__all__ = ["classify_by_force", "parse_forces_and_check_zero"]
 
 
 def parse_forces_and_check_zero(filename, atol=1e-6):
-    with open(filename, "r") as f:
+    with open(filename) as f:
         lines = f.readlines()
 
     last_forces_sum = None

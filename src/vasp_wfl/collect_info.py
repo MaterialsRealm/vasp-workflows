@@ -55,11 +55,11 @@ class ResultCollector:
                 free_energy, internal_energy = None, None
 
                 if outcar_path.exists():
-                    tot_mag_outcar = MagnetizationParser.from_outcar(str(outcar_path))
+                    tot_mag_outcar = MagnetizationParser.from_outcar(outcar_path)
 
                 if oszicar_path.exists():
-                    tot_mag_oszicar = MagnetizationParser.from_oszicar(str(oszicar_path))
-                    free_energy, internal_energy = get_energies(str(oszicar_path))
+                    tot_mag_oszicar = MagnetizationParser.from_oszicar(oszicar_path)
+                    free_energy, internal_energy = get_energies(oszicar_path)
 
                 if not contcar_path.exists():
                     structure_info[folder] = {
