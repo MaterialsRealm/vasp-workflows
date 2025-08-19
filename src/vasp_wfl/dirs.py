@@ -103,7 +103,7 @@ class WorkdirFinder:
             msg = "Use Python 3.12+ to run this function!"
             raise RuntimeError(msg)
 
-        for current_dir, subdirs, _ in start_path.walk():
+        for current_dir, subdirs, _ in start_path.walk(follow_symlinks=True):
             # Exclude hidden subdirectories and pattern-matched directories from further traversal
             subdirs[:] = [
                 d
