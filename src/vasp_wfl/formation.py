@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-__all__ = ["Compound"]
+__all__ = ["Compound", "calculate_formation_energies"]
 
 
 @dataclass
@@ -38,3 +38,46 @@ class Compound:
         total_atoms = sum(self.elements.values())
         ref_sum = sum(self.elements[element] * component_energies[element] for element in self.elements)
         return (energy - ref_sum) / total_atoms
+
+
+def calculate_formation_energies(structure_info: dict) -> dict:
+    """Calculate formation energies for compounds in structure_info.
+
+    Args:
+        structure_info (dict): Output from ResultCollector.collect().
+
+    Returns:
+        dict: Mapping from folder name to formation energy (per atom).
+
+    Raises:
+        ValueError: If a compound contains an element not found in reference energies.
+    """
+    # Collect pure element reference energies
+    reference_energies = {}
+    for info in structure_info.values():
+        composition = info.get("composition")
+        energy_per_atom = info.get("energy per atom")
+        if not isinstance(composition, dict) or energy_per_atom is None:
+            continue
+        if len(composition) == 1:
+            element = next(iter(composition))
+            reference_energies[element] = energy_per_atom
+    # Calculate formation energies for compounds
+    formation_energies = {}
+    for folder, info in structure_info.items():
+        composition = info.get("composition")
+        energy = info.get("F")
+        if not isinstance(composition, dict) or energy is None:
+            continue
+        # Skip pure elements in this round
+        if len(composition) == 1:
+            continue
+        # Check all elements are present in reference energies
+        missing_elements = set(composition).difference(reference_energies)
+        if missing_elements:
+            error_msg = f"Missing reference energies for elements: {sorted(missing_elements)} in folder '{folder}'"
+            raise ValueError(error_msg)
+        compound = Compound(composition)
+        formation_energy = compound.formation_energy(energy, reference_energies)
+        formation_energies[folder] = formation_energy
+    return formation_energies
