@@ -77,6 +77,8 @@ class ResultCollector:
                         "tot_mag_oszicar": tot_mag_oszicar,
                         "F": free_energy,
                         "E0": internal_energy,
+                        "magnetization": None,
+                        "energy per atom": None,
                         "reason": "CONTCAR missing",
                     }
                     continue
@@ -92,9 +94,24 @@ class ResultCollector:
                         "tot_mag_oszicar": tot_mag_oszicar,
                         "F": free_energy,
                         "E0": internal_energy,
+                        "magnetization": None,
+                        "energy per atom": None,
                         "reason": f"Failed to parse structure file: {e}",
                     }
                 else:
+                    # Calculate magnetization and energy per atom
+                    magnetization = None
+                    energy_per_atom = None
+                    if tot_mag_outcar is not None and volume not in [None, 0, np.nan]:
+                        try:
+                            magnetization = tot_mag_outcar / volume
+                        except Exception:
+                            magnetization = None
+                    if free_energy is not None and isinstance(composition, dict) and sum(composition.values()) > 0:
+                        try:
+                            energy_per_atom = free_energy / sum(composition.values())
+                        except Exception:
+                            energy_per_atom = None
                     structure_info[folder] = {
                         "abs_path": abs_path,
                         "volume": volume,
@@ -103,6 +120,8 @@ class ResultCollector:
                         "tot_mag_oszicar": tot_mag_oszicar,
                         "F": free_energy,
                         "E0": internal_energy,
+                        "magnetization": magnetization,
+                        "energy per atom": energy_per_atom,
                         "reason": "Success",
                     }
         self.structure_info = structure_info
