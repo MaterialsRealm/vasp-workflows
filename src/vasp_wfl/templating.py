@@ -11,13 +11,13 @@ __all__ = ["TemplateDistributor", "TemplateModifier"]
 
 
 class TemplateDistributor:
-    """A class for distributing template input files to VASP working directories."""
+    """Distribute template input files to VASP working directories."""
 
     def __init__(self, src_files):
-        """Initialize with a list of source file paths to be copied.
+        """Initialize with a list of source file paths to copy.
 
         Args:
-            src_files: List of file paths to be distributed to VASP working directories.
+            src_files: List of file paths to distribute to VASP working directories.
         """
         self.src_files = [str(Path(src_file).resolve()) for src_file in src_files if Path(src_file).is_file()]
         for src_file in src_files:
@@ -25,7 +25,7 @@ class TemplateDistributor:
                 LOGGER.warning(f"Source file '{src_file}' does not exist and will be skipped.")
 
     def __call__(self, start_dir, *, overwrite=False):
-        """Copies the specified source files to all VASP working directories found under `start_dir`.
+        """Copy source files to all VASP working directories found under `start_dir`.
 
         Args:
             start_dir: Path to the starting directory for recursive search of VASP working directories.
@@ -58,22 +58,20 @@ class TemplateDistributor:
 
 
 class TemplateModifier:
-    """A class representing a single template file, supporting rendering with Mustache syntax
-    and modification of target files in append or overwrite modes.
-    """
+    """Represent a template file, supporting Mustache rendering and modification of target files in append or overwrite modes."""
 
     def __init__(self, template, target_file):
-        """Initialize with the template text (Mustache syntax) and the target filename.
+        """Initialize with template text (Mustache syntax) and target filename.
 
         Args:
-            template: The raw template string with Mustache placeholders.
-            target_file: The name of the file to modify in each working directory.
+            template: Raw template string with Mustache placeholders.
+            target_file: Name of the file to modify in each working directory.
         """
         self.template = template
         self.target_file = target_file
 
     def render(self, target_dir, variables, mode: Literal["append", "overwrite"] = "append"):
-        """Render the template with provided variables, handling file content based on mode.
+        """Render the template with provided variables and handle file content based on mode.
 
         Args:
             target_dir: Path to the directory containing the target file.
@@ -81,7 +79,7 @@ class TemplateModifier:
             mode: 'append' to add rendered text to existing content; 'overwrite' to replace it.
 
         Returns:
-            str: The final content to write to the file.
+            str: Final content to write to the file.
         """
         target_path = Path(target_dir) / self.target_file
         rendered = pystache.render(self.template, variables)
@@ -101,7 +99,7 @@ class TemplateModifier:
 
         Args:
             target_dir: Path to the directory containing the target file.
-            final_content: The final content to write to the file.
+            final_content: Final content to write to the file.
             mode: Mode used for logging purposes ('append' or 'overwrite').
 
         Returns:
