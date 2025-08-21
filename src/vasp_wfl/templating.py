@@ -1,5 +1,6 @@
 import shutil
 from pathlib import Path
+from typing import Literal
 
 import pystache
 
@@ -71,7 +72,7 @@ class TemplateModifier:
         self.template = template
         self.target_file = target_file
 
-    def render(self, target_dir, variables, mode="append"):
+    def render(self, target_dir, variables, mode: Literal["append", "overwrite"] = "append"):
         """Render the template with provided variables, handling file content based on mode.
 
         Args:
@@ -95,7 +96,7 @@ class TemplateModifier:
         msg = f"{mode} is invalid; must be 'append' or 'overwrite'."
         raise ValueError(msg)
 
-    def modify(self, target_dir, final_content, mode="append"):
+    def modify(self, target_dir, final_content, mode: Literal["append", "overwrite"] = "append"):
         """Write the final content to the target file in the given directory.
 
         Args:
@@ -132,7 +133,7 @@ class TemplateModifier:
             LOGGER.error(f"Failed to modify '{target_path}': {e}")
             return False
 
-    def render_modify(self, target_dir, variables, mode="append"):
+    def render_modify(self, target_dir, variables, mode: Literal["append", "overwrite"] = "append"):
         """Render the template with provided variables and modify the target file in the given directory.
 
         Args:
