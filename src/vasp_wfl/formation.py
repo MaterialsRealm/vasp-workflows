@@ -40,11 +40,11 @@ class Compound:
         return (energy - ref_sum) / total_atoms
 
 
-def calculate_formation_energies(structure_info: dict) -> dict:
-    """Calculate formation energies for compounds in structure_info.
+def calculate_formation_energies(info: dict) -> dict:
+    """Calculate formation energies for compounds in info.
 
     Args:
-        structure_info (dict): Output from ResultCollector.collect().
+        info (dict): Output from ResultCollector.collect().
 
     Returns:
         dict: Mapping from folder name to formation energy (per atom).
@@ -54,9 +54,9 @@ def calculate_formation_energies(structure_info: dict) -> dict:
     """
     # Collect pure element reference energies
     reference_energies = {}
-    for info in structure_info.values():
-        composition = info.get("composition")
-        energy_per_atom = info.get("energy per atom")
+    for values in info.values():
+        composition = values.get("composition")
+        energy_per_atom = values.get("energy per atom")
         if not isinstance(composition, dict) or energy_per_atom is None:
             continue
         if len(composition) == 1:
@@ -64,9 +64,9 @@ def calculate_formation_energies(structure_info: dict) -> dict:
             reference_energies[element] = energy_per_atom
     # Calculate formation energies for compounds
     formation_energies = {}
-    for folder, info in structure_info.items():
-        composition = info.get("composition")
-        energy = info.get("F")
+    for folder, values in info.items():
+        composition = values.get("composition")
+        energy = values.get("F")
         if not isinstance(composition, dict) or energy is None:
             continue
         # Skip pure elements in this round

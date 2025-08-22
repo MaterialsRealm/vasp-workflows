@@ -40,7 +40,7 @@ class VaspWorkflow:
         WorkdirClassifier.from_root(self.root, classify_by_force).dump_status()
         print("report_status.json written.")
 
-    def collect_info(self, filename="structure_info.csv"):
+    def collect_info(self, filename="info.csv"):
         folders = self.filter_folders()
         # Check if all done.txt exist
         for folder in folders:
@@ -113,7 +113,7 @@ def report_status():
 @cli.command("collect-info")
 @click.option(
     "--filename",
-    default="structure_info.csv",
+    default="info.csv",
     help="Output CSV filename for collected information",
 )
 def collect_info(filename):
@@ -123,7 +123,7 @@ def collect_info(filename):
         filename: Output CSV filename for collected information
 
     Usage:
-        vsn collect-info                        # Default output to structure_info.csv
+        vsn collect-info                        # Default output to info.csv
         vsn collect-info --filename results.csv # Custom filename
 
     Returns:

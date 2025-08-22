@@ -25,7 +25,7 @@ class ResultCollector:
 
     An instance scans a root directory for completed calculations (as determined
     by `WorkdirClassifier`) and extracts volume, composition, energies, and
-    magnetization. Parsed values are stored in `structure_info` as a mapping
+    magnetization. Parsed values are stored in `info` as a mapping
     from relative directory names to attribute dictionaries once `collect()` is
     invoked.
     """
@@ -39,11 +39,11 @@ class ResultCollector:
         """
         self.root = Path(root)
         self.atol = atol
-        self._structure_info = {}
+        self._info = {}
         self._collected = False
 
     @property
-    def structure_info(self):
+    def info(self):
         """Collected structure information mapping.
 
         On first access, trigger `collect()` to populate the data. Always
@@ -51,21 +51,21 @@ class ResultCollector:
         """
         if not self._collected:
             self.collect()
-        return self._structure_info
+        return self._info
 
     def collect(self):
         """Collect information from VASP calculation subdirectories.
 
         Scan subdirectories, classify calculation status, and for completed
         runs parse structure (volume, composition), total magnetization (from
-        OUTCAR/OSZICAR), and energies. Store results in `self.structure_info`.
+        OUTCAR/OSZICAR), and energies. Store results in `self.info`.
 
         Example:
             collector = ResultCollector(root="./vasp_runs")
             collector.collect()
         """
         status_dict = WorkdirClassifier.from_root(self.root, classify_by_force, atol=self.atol).details
-        structure_info = {}
+        info = {}
 
         for folder, info in status_dict.items():
             if info["status"] == WorkStatus.DONE:
@@ -93,7 +93,7 @@ class ResultCollector:
                 elif poscar_path.exists():
                     structure_file = poscar_path
                 if structure_file is None:
-                    structure_info[folder] = {
+                    info[folder] = {
                         "abs_path": abs_path,
                         "volume": np.nan,
                         "composition": None,
@@ -110,7 +110,7 @@ class ResultCollector:
                     volume = get_volume(structure_file)
                     composition = ElementCounter.from_file(structure_file)
                 except Exception as e:
-                    structure_info[folder] = {
+                    info[folder] = {
                         "abs_path": abs_path,
                         "volume": np.nan,
                         "composition": None,
@@ -136,7 +136,7 @@ class ResultCollector:
                             energy_per_atom = free_energy / sum(composition.values())
                         except Exception:
                             energy_per_atom = None
-                    structure_info[folder] = {
+                    info[folder] = {
                         "abs_path": abs_path,
                         "volume": volume,
                         "composition": composition,
@@ -149,10 +149,10 @@ class ResultCollector:
                         "reason": "Success",
                     }
         # Store into internal storage and mark collected.
-        self._structure_info = structure_info
+        self._info = info
         self._collected = True
 
-    def to_json(self, output="structure_info.json"):
+    def to_json(self, output="info.json"):
         """Save collected structure information to a JSON file.
 
         Args:
@@ -170,7 +170,7 @@ class ResultCollector:
                 return None
             return o
 
-        Path(output).write_text(json.dumps(self.structure_info, indent=2, default=safe))
+        Path(output).write_text(json.dumps(self.info, indent=2, default=safe))
 
     def to_dataframe(self):
         """Convert collected structure information to a pandas DataFrame.
@@ -183,7 +183,7 @@ class ResultCollector:
         Example:
             df = collector.to_dataframe()
         """
-        df = pd.DataFrame.from_dict(self.structure_info, orient="index")
+        df = pd.DataFrame.from_dict(self.info, orient="index")
         df = df.reset_index().rename(columns={"index": "index"})
         # Expand composition dictionary into columns
         composition_df = df["composition"].apply(lambda x: x if isinstance(x, dict) else {}).apply(pd.Series)
