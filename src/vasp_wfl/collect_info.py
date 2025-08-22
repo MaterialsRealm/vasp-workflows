@@ -39,7 +39,19 @@ class ResultCollector:
         """
         self.root = Path(root)
         self.atol = atol
-        self.structure_info = None
+        self._structure_info = {}
+        self._collected = False
+
+    @property
+    def structure_info(self):
+        """Collected structure information mapping.
+
+        On first access, trigger `collect()` to populate the data. Always
+        return a dictionary (empty if no results found).
+        """
+        if not self._collected:
+            self.collect()
+        return self._structure_info
 
     def collect(self):
         """Collect information from VASP calculation subdirectories.
@@ -136,7 +148,9 @@ class ResultCollector:
                         "energy per atom": energy_per_atom,
                         "reason": "Success",
                     }
-        self.structure_info = structure_info
+        # Store into internal storage and mark collected.
+        self._structure_info = structure_info
+        self._collected = True
 
     def to_json(self, output="structure_info.json"):
         """Save collected structure information to a JSON file.
@@ -150,8 +164,6 @@ class ResultCollector:
         Example:
             collector.to_json("my_results.json")
         """
-        if self.structure_info is None:
-            raise ValueError("You must run collect() before saving JSON.")
 
         def safe(o):
             if isinstance(o, float) and np.isnan(o):
@@ -159,19 +171,6 @@ class ResultCollector:
             return o
 
         Path(output).write_text(json.dumps(self.structure_info, indent=2, default=safe))
-
-    def to_dict(self):
-        """Return collected structure information as a dictionary.
-
-        Raises:
-            ValueError: If `collect()` has not been called yet.
-
-        Example:
-            info = collector.to_dict()
-        """
-        if self.structure_info is None:
-            raise ValueError("You must run collect() before returning dict.")
-        return self.structure_info
 
     def to_dataframe(self):
         """Convert collected structure information to a pandas DataFrame.
@@ -184,8 +183,6 @@ class ResultCollector:
         Example:
             df = collector.to_dataframe()
         """
-        if self.structure_info is None:
-            raise ValueError("You must run collect() before converting to DataFrame.")
         df = pd.DataFrame.from_dict(self.structure_info, orient="index")
         df = df.reset_index().rename(columns={"index": "index"})
         # Expand composition dictionary into columns
