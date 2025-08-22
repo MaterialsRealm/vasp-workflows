@@ -1,3 +1,10 @@
+"""Utilities to collect structured results from VASP calculation directories.
+
+Traverse a directory tree, classify work directories, parse structure, energy,
+volume, and magnetization information, and expose them as Python dict, JSON, or
+pandas DataFrame representations.
+"""
+
 import json
 from pathlib import Path
 
@@ -14,27 +21,32 @@ __all__ = ["ResultCollector"]
 
 
 class ResultCollector:
+    """Collect structured information from VASP calculation directories.
+
+    An instance scans a root directory for completed calculations (as determined
+    by `WorkdirClassifier`) and extracts volume, composition, energies, and
+    magnetization. Parsed values are stored in `structure_info` as a mapping
+    from relative directory names to attribute dictionaries once `collect()` is
+    invoked.
+    """
+
     def __init__(self, root=".", atol=1e-6):
-        """Initializes the ResultCollector.
+        """Initialize the collector.
 
         Args:
-            root (str):
-                Root directory to search for results. Defaults to current directory.
-            atol (float):
-                Absolute tolerance for energy comparison. Defaults to 1e-6.
+            root: Root directory to search for results.
+            atol: Absolute tolerance for energy comparison.
         """
         self.root = Path(root)
         self.atol = atol
         self.structure_info = None
 
     def collect(self):
-        """Collects information from VASP calculation folders.
+        """Collect information from VASP calculation subdirectories.
 
-        Scans subdirectories for calculation results, parses relevant files (CONTCAR, OUTCAR, OSZICAR),
-        and stores structure and energy information in self.structure_info.
-
-        Returns:
-            None
+        Scan subdirectories, classify calculation status, and for completed
+        runs parse structure (volume, composition), total magnetization (from
+        OUTCAR/OSZICAR), and energies. Store results in `self.structure_info`.
 
         Example:
             collector = ResultCollector(root="./vasp_runs")
@@ -127,17 +139,13 @@ class ResultCollector:
         self.structure_info = structure_info
 
     def to_json(self, output="structure_info.json"):
-        """Saves the collected structure information to a JSON file.
+        """Save collected structure information to a JSON file.
 
         Args:
-            output (str):
-                Path to the output JSON file. Defaults to 'structure_info.json'.
-
-        Returns:
-            None
+            output: Path to the output JSON file.
 
         Raises:
-            ValueError: If collect() has not been run before calling this method.
+            ValueError: If `collect()` has not been called yet.
 
         Example:
             collector.to_json("my_results.json")
@@ -153,13 +161,10 @@ class ResultCollector:
         Path(output).write_text(json.dumps(self.structure_info, indent=2, default=safe))
 
     def to_dict(self):
-        """Returns the collected structure information as a dictionary.
-
-        Returns:
-            dict: The structure information collected from calculation folders.
+        """Return collected structure information as a dictionary.
 
         Raises:
-            ValueError: If collect() has not been run before calling this method.
+            ValueError: If `collect()` has not been called yet.
 
         Example:
             info = collector.to_dict()
@@ -169,13 +174,12 @@ class ResultCollector:
         return self.structure_info
 
     def to_dataframe(self):
-        """Converts the collected structure information to a pandas DataFrame.
+        """Convert collected structure information to a pandas DataFrame.
 
-        Returns:
-            pandas.DataFrame: DataFrame containing structure and energy information for each folder.
+        Expands the `composition` mapping into individual element columns.
 
         Raises:
-            ValueError: If collect() has not been run before calling this method.
+            ValueError: If `collect()` has not been called yet.
 
         Example:
             df = collector.to_dataframe()
