@@ -6,7 +6,7 @@ from pymatgen.core import Structure
 __all__ = ["SpglibCell"]
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class SpglibCell:
     """A data class to store input for the spglib library, representing a crystal structure.
 
