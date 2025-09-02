@@ -1,4 +1,7 @@
+import contextlib
 import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Literal
 
@@ -144,3 +147,42 @@ class TemplateModifier:
         """
         final_content = self.render(target_dir, variables, mode)
         return self.modify(target_dir, final_content, mode)
+
+    def patch(self, target_dir, patch_path=None):
+        """Apply a unified diff patch to the target file in the given directory.
+
+        If `patch_path` is None, write `self.template` to a temporary file and use it as the patch.
+        Check for the `patch` command before running.
+
+        Args:
+            target_dir: Directory containing the target file.
+            patch_path: Path to the patch file (unified diff format). If None, use `self.template`.
+
+        Returns:
+            True if patch applied successfully, False otherwise.
+        """
+        if shutil.which("patch") is None:
+            LOGGER.error("`patch` command not found in PATH.")
+            return False
+
+        target_path = Path(target_dir) / self.target_file
+        temp_patch = None
+        if patch_path is None:
+            with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8", suffix=".diff") as tmp:
+                tmp.write(self.template)
+                patch_path = tmp.name
+                temp_patch = tmp.name
+
+        cmd = ["patch", str(target_path)]
+        try:
+            with Path(patch_path).open(encoding="ascii") as patch_file:
+                result = subprocess.run(cmd, stdin=patch_file, capture_output=True, text=True, check=True)
+            LOGGER.info(f"Applied patch to '{target_path}': {result.stdout.strip()}")
+            return True
+        except subprocess.CalledProcessError as e:
+            LOGGER.error(f"Failed to apply patch to '{target_path}': {e.stderr.strip()}")
+            return False
+        finally:
+            if temp_patch:
+                with contextlib.suppress(FileNotFoundError):
+                    Path(temp_patch).unlink()
