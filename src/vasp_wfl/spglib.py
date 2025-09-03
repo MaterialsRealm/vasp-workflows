@@ -107,3 +107,62 @@ class SpglibCell:
         Converts atomic numbers to element symbols for species.
         """
         return Structure(lattice=self.lattice, species=self.atoms, coords=self.positions)
+
+    def __repr__(self):
+        """Return a reconstructable, multi-line string representation of the instance."""
+        lattice_str = np.array2string(
+            np.asarray(self.lattice),
+            separator=", ",
+            prefix="    ",
+            max_line_width=120,
+        )
+        positions_str = np.array2string(
+            np.asarray(self.positions),
+            separator=", ",
+            prefix="    ",
+            max_line_width=120,
+        )
+        atoms_str = np.array2string(
+            np.asarray(self.atoms),
+            separator=", ",
+            prefix="    ",
+            max_line_width=120,
+        )
+        magmoms_str = (
+            np.array2string(
+                np.asarray(self.magmoms),
+                separator=", ",
+                prefix="    ",
+                max_line_width=120,
+            )
+            if self.magmoms is not None
+            else "None"
+        )
+        return (
+            f"SpglibCell(\n"
+            f"    lattice={lattice_str},\n"
+            f"    positions={positions_str},\n"
+            f"    atoms={atoms_str},\n"
+            f"    magmoms={magmoms_str}\n"
+            f")"
+        )
+
+    def __str__(self):
+        """Return a readable, pretty-printed summary of the cell."""
+        magmoms_str = (
+            np.array2string(np.asarray(self.magmoms), separator=", ", prefix="    ")
+            if self.magmoms is not None
+            else "None"
+        )
+        summary = [
+            "SpglibCell:",
+            "  Lattice:",
+            np.array2string(np.asarray(self.lattice), separator=", ", prefix="    "),
+            "  Positions:",
+            np.array2string(np.asarray(self.positions), separator=", ", prefix="    "),
+            "  Atoms:",
+            np.array2string(np.asarray(self.atoms), separator=", ", prefix="    "),
+            "  Magmoms:",
+            magmoms_str,
+        ]
+        return "\n".join(summary)
