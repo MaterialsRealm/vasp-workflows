@@ -16,7 +16,9 @@ __all__ = [
     "ElementCounter",
     "ElementExtractor",
     "PoscarContcarMover",
+    "LatticeExtractor",
     "SiteExtractor",
+    "AtomsExtractor",
     "StructureParser",
     "SymmetryDetector",
     "cif_to_poscar",
@@ -149,6 +151,22 @@ class ElementCounter(StructureProcessor):
         return Counter(structure.species)
 
 
+class LatticeExtractor(StructureProcessor):
+    """Class to extract lattice information from a structure."""
+
+    @staticmethod
+    def process(structure):
+        """Extract lattice from structure.
+
+        Args:
+            structure (pymatgen.Structure): Structure to process.
+
+        Returns:
+            pymatgen.Lattice: Lattice information.
+        """
+        return structure.lattice
+
+
 class SiteExtractor(StructureProcessor):
     """Class to extract atomic sites from a structure."""
 
@@ -163,6 +181,22 @@ class SiteExtractor(StructureProcessor):
             list: List of atomic sites.
         """
         return structure.sites
+
+
+class AtomsExtractor(StructureProcessor):
+    """Class to extract atomic positions from a structure."""
+
+    @staticmethod
+    def process(structure):
+        """Extract atomic positions from structure.
+
+        Args:
+            structure (pymatgen.Structure): Structure to process.
+
+        Returns:
+            list: List of atomic positions.
+        """
+        return [site.species for site in structure.sites]
 
 
 class SymmetryDetector(StructureProcessor):
