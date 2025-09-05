@@ -43,6 +43,36 @@ class SpglibCell:
         self.atoms = atoms
         self.magmoms = magmoms
 
+    @classmethod
+    def from_structure(cls, structure: Structure):
+        """Create a `SpglibCell` from a pymatgen `Structure` object.
+
+        Args:
+            structure: The input structure.
+
+        Returns:
+            SpglibCell: The corresponding cell object.
+        """
+        lattice = structure.lattice.matrix
+        positions = structure.frac_coords
+        atoms = [site.specie.Z for site in structure.sites]
+        magmoms = None
+        if structure.site_properties.get("magmom"):
+            magmoms = structure.site_properties["magmom"]
+            if isinstance(magmoms[0], (int, float)):
+                magmoms = [float(m) for m in magmoms]
+            else:
+                magmoms = [list(map(float, m)) for m in magmoms]
+
+        return cls(lattice=lattice, positions=positions, atoms=atoms, magmoms=magmoms)
+
+    def to_structure(self) -> Structure:
+        """Return a pymatgen `Structure` from this cell.
+
+        Converts atomic numbers to element symbols for species.
+        """
+        return Structure(lattice=self.lattice, species=self.atoms, coords=self.positions)
+
     def __eq__(self, other):
         """Check for value equality between two `SpglibCell` objects."""
         if not isinstance(other, SpglibCell):
@@ -77,36 +107,6 @@ class SpglibCell:
             else:
                 magmoms_tuple = tuple(tuple(float(x) for x in row) for row in magmoms_arr)
         return hash((lattice_tuple, positions_tuple, atoms_tuple, magmoms_tuple))
-
-    @classmethod
-    def from_structure(cls, structure: Structure):
-        """Create a `SpglibCell` from a pymatgen `Structure` object.
-
-        Args:
-            structure: The input structure.
-
-        Returns:
-            SpglibCell: The corresponding cell object.
-        """
-        lattice = structure.lattice.matrix
-        positions = structure.frac_coords
-        atoms = [site.specie.Z for site in structure.sites]
-        magmoms = None
-        if structure.site_properties.get("magmom"):
-            magmoms = structure.site_properties["magmom"]
-            if isinstance(magmoms[0], (int, float)):
-                magmoms = [float(m) for m in magmoms]
-            else:
-                magmoms = [list(map(float, m)) for m in magmoms]
-
-        return cls(lattice=lattice, positions=positions, atoms=atoms, magmoms=magmoms)
-
-    def to_structure(self) -> Structure:
-        """Return a pymatgen `Structure` from this cell.
-
-        Converts atomic numbers to element symbols for species.
-        """
-        return Structure(lattice=self.lattice, species=self.atoms, coords=self.positions)
 
     def __repr__(self):
         """Return a reconstructable, multi-line string representation of the instance."""
