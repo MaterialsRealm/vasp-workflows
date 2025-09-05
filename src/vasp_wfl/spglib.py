@@ -1,5 +1,6 @@
 import numpy as np
 from pymatgen.core import Structure
+from spglib import get_magnetic_symmetry_dataset, get_symmetry_dataset
 
 __all__ = ["SpglibCell"]
 
@@ -16,7 +17,19 @@ class SpglibCell:
                  magnetism. Defaults to `None`.
     """
 
-    def __init__(self, lattice, positions, atoms, magmoms=None):
+    def __init__(
+        self,
+        lattice,
+        positions,
+        atoms,
+        magmoms=None,
+        *,
+        symprec=1e-5,
+        angle_tolerance=-1.0,
+        hall_number=0,
+        mag_symprec=-1.0,
+        is_axial=None,
+    ):
         """Initialize a SpglibCell and validate input shapes and lengths.
 
         Args:
@@ -24,11 +37,20 @@ class SpglibCell:
             positions: The fractional coordinates of atoms.
             atoms: A list of integers representing the atomic species (atomic numbers).
             magmoms: Optional magnetic moments for each atom.
+            symprec: Symmetry search tolerance in the unit of length.
+            angle_tolerance: Symmetry search tolerance in the unit of angle degree.
+            hall_number: The Hall symbol is given by the serial number in between 1 and 530.
+            mag_symprec: Tolerance for magnetic symmetry search in the unit of magnetic moments.
+            is_axial: Whether moments are axial (for magnetic symmetry).
 
         Raises:
             ValueError: If input shapes or lengths are inconsistent.
         """
-        if np.shape(lattice) != (3, 3):
+        lattice = np.asarray(lattice)
+        positions = np.asarray(positions)
+        atoms = np.asarray(atoms)
+        magmoms = None if magmoms is None else np.asarray(magmoms)
+        if lattice.shape != (3, 3):
             msg = "lattice must be a 3x3 array-like structure"
             raise ValueError(msg)
         n_sites = len(positions)
@@ -42,6 +64,56 @@ class SpglibCell:
         self.positions = positions
         self.atoms = atoms
         self.magmoms = magmoms
+        self._symprec = symprec
+        self._angle_tolerance = angle_tolerance
+        self._hall_number = int(hall_number)
+        self._mag_symprec = mag_symprec
+        self._is_axial = None if is_axial is None else bool(is_axial)
+
+    @property
+    def symprec(self):
+        """The symmetry finding tolerance."""
+        return self._symprec
+
+    @symprec.setter
+    def symprec(self, value):
+        self._symprec = value
+
+    @property
+    def angle_tolerance(self):
+        """The angle tolerance for symmetry finding."""
+        return self._angle_tolerance
+
+    @angle_tolerance.setter
+    def angle_tolerance(self, value):
+        self._angle_tolerance = value
+
+    @property
+    def hall_number(self):
+        """The Hall number for symmetry dataset."""
+        return self._hall_number
+
+    @hall_number.setter
+    def hall_number(self, value):
+        self._hall_number = int(value)
+
+    @property
+    def mag_symprec(self):
+        """The magnetic symmetry tolerance."""
+        return self._mag_symprec
+
+    @mag_symprec.setter
+    def mag_symprec(self, value):
+        self._mag_symprec = value
+
+    @property
+    def is_axial(self):
+        """Whether moments are axial (for magnetic symmetry)."""
+        return self._is_axial
+
+    @is_axial.setter
+    def is_axial(self, value):
+        self._is_axial = None if value is None else bool(value)
 
     @classmethod
     def from_structure(cls, structure: Structure):
@@ -166,3 +238,38 @@ class SpglibCell:
             magmoms_str,
         ]
         return "\n".join(summary)
+
+    @property
+    def symmetry(self):
+        """The symmetry dataset for the cell using spglib."""
+        cell = (
+            self.lattice,
+            self.positions,
+            self.atoms,
+            self.magmoms,
+        )
+        if self.magmoms is None:
+            return get_symmetry_dataset(
+                cell,
+                symprec=self.symprec,
+                angle_tolerance=self.angle_tolerance,
+                hall_number=self.hall_number,
+            )
+        # else:
+        is_axial = self.is_axial
+        if is_axial is None:  # Determine is_axial if not set
+            num_atoms = len(self.atoms)
+            if self.magmoms.shape == (num_atoms,):
+                is_axial = False
+            elif self.magmoms.shape == (num_atoms, 3):
+                is_axial = True
+            else:
+                msg = "Cannot determine is_axial: magmoms shape is invalid."
+                raise ValueError(msg)
+        return get_magnetic_symmetry_dataset(
+            cell,
+            is_axial=is_axial,
+            symprec=self.symprec,
+            angle_tolerance=self.angle_tolerance,
+            mag_symprec=self.mag_symprec,
+        )
