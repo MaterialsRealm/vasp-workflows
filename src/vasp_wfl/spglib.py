@@ -285,7 +285,6 @@ class SpglibCell:
         identifiers = []
         next_id = 1
         for atom in self.atoms:
-            print(atom)
             if atom not in mapping:
                 mapping[atom] = next_id
                 next_id += 1
