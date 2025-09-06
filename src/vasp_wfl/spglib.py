@@ -281,8 +281,8 @@ class SpglibCell:
         The first unique atomic number is assigned 1, the second unique 2, etc.
         Atoms of the same type receive the same identifier as their first occurrence.
         """
-        mapping = {}
-        identifiers = []
+        mapping: dict[object, int] = {}
+        identifiers: list[int] = []
         next_id = 1
         for atom in self.atoms:
             if atom not in mapping:
