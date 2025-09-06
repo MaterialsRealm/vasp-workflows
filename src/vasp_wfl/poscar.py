@@ -196,7 +196,7 @@ class AtomsExtractor(StructureProcessor):
         Returns:
             list: List of atomic positions.
         """
-        return [site.species for site in structure.sites]
+        return [site.species.iupac_formula for site in structure.sites]
 
 
 class SymmetryDetector(StructureProcessor):
