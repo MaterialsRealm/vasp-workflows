@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from pymatgen.io.vasp import Incar, Poscar
+from pymatgen.io.vasp import Incar, Outcar, Poscar
 
 from .poscar import AtomsExtractor, LatticeExtractor, SiteExtractor
 from .spglib import SpglibCell
 
-__all__ = ["cell_from_input", "cell_to_input"]
+__all__ = ["cell_from_input", "cell_to_input", "cell_from_output"]
 
 
 def cell_from_input(incar, poscar):
@@ -29,3 +29,13 @@ def cell_to_input(cell, incar, poscar):
         incar_data["MAGMOM"] = cell.magmoms
     incar_data.write_file(incar)
     Poscar(cell.to_structure()).write_file(poscar)
+
+
+def cell_from_output(outcar, poscar):
+    """Create a cell object from OUTCAR and POSCAR files."""
+    outcar_data = Outcar(outcar)
+    magmoms = [magnetization["tot"] for magnetization in outcar_data.magnetization]
+    lattice = LatticeExtractor.from_file(poscar).matrix
+    positions = [site.frac_coords for site in SiteExtractor.from_file(poscar)]
+    atoms = AtomsExtractor.from_file(poscar)
+    return SpglibCell(lattice, positions, atoms, magmoms)
