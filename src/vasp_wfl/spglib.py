@@ -245,7 +245,7 @@ class SpglibCell:
         cell = (
             self.lattice,
             self.positions,
-            self.atoms,
+            self.atom_identifiers,
             self.magmoms,
         )
         if self.magmoms is None:
@@ -273,3 +273,21 @@ class SpglibCell:
             angle_tolerance=self.angle_tolerance,
             mag_symprec=self.mag_symprec,
         )
+
+    @property
+    def atom_identifiers(self):
+        """Return a list of integer identifiers for each atom type in order of appearance.
+
+        The first unique atomic number is assigned 1, the second unique 2, etc.
+        Atoms of the same type receive the same identifier as their first occurrence.
+        """
+        mapping = {}
+        identifiers = []
+        next_id = 1
+        for atom in self.atoms:
+            print(atom)
+            if atom not in mapping:
+                mapping[atom] = next_id
+                next_id += 1
+            identifiers.append(mapping[atom])
+        return identifiers
