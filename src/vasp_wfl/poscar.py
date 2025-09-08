@@ -221,6 +221,7 @@ def cif_to_poscar(cif_files):
         poscar_path = os.path.join(cif_dir, "POSCAR")
         atoms = read(cif_file)
         write(poscar_path, atoms, format="vasp")
+    return cif_files
 
 
 class PoscarContcarMover:
