@@ -216,12 +216,38 @@ class SymmetryDetector(StructureProcessor):
 
 
 def cif_to_poscar(cif_files):
-    for cif_file in cif_files:
-        cif_dir = os.path.dirname(os.path.abspath(cif_file))
-        poscar_path = os.path.join(cif_dir, "POSCAR")
-        atoms = read(cif_file)
+    """Convert CIF files to POSCAR files, organizing them by directory.
+
+    If all CIF files are in the same directory, create a subdirectory for each file (named after the file
+    without the .cif extension), move the CIF file there, and write the POSCAR in that subdirectory. If not,
+    write the POSCAR in the same directory as each CIF file.
+
+    Args:
+        cif_files: List of CIF file paths.
+
+    Returns:
+        List of new CIF file paths (if moved), or the original list if not moved.
+    """
+    cif_paths = [Path(f).resolve() for f in cif_files]
+    cif_dirs = {path.parent for path in cif_paths}
+    move_to_subdir = len(cif_dirs) == 1
+    result_cifs = []
+    for orig_cif_path in cif_paths:
+        cif_path = orig_cif_path
+        if move_to_subdir:
+            # Extract the only element from the set
+            base_dir = next(iter(cif_dirs))
+            name = cif_path.stem
+            target_dir = base_dir / name
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target_cif = target_dir / cif_path.name
+            shutil.move(cif_path, target_cif)
+            cif_path = target_cif
+        atoms = read(cif_path)
+        poscar_path = cif_path.parent / "POSCAR"
         write(poscar_path, atoms, format="vasp")
-    return cif_files
+        result_cifs.append(str(cif_path))
+    return result_cifs
 
 
 class PoscarContcarMover:
