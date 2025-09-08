@@ -1,11 +1,19 @@
+from collections.abc import Mapping
 from pathlib import Path
 
+import numpy as np
 from pymatgen.io.vasp import Incar, Outcar, Poscar
 
+from .logger import LOGGER
 from .poscar import AtomsExtractor, LatticeExtractor, SiteExtractor
 from .spglib import SpglibCell
 
-__all__ = ["cell_from_input", "cell_to_input", "cell_from_output"]
+__all__ = [
+    "cell_from_input",
+    "cell_from_output",
+    "cell_to_input",
+    "set_ferromagnetic",
+]
 
 
 def cell_from_input(incar, poscar):
@@ -39,3 +47,18 @@ def cell_from_output(outcar, poscar):
     positions = [site.frac_coords for site in SiteExtractor.from_file(poscar)]
     atoms = AtomsExtractor.from_file(poscar)
     return SpglibCell(lattice, positions, atoms, magmoms)
+
+
+def set_ferromagnetic(cell: SpglibCell, mapping: Mapping):
+    """Set the cell to a ferromagnetic state based on the provided mapping.
+
+    Log a warning if an atom is not found in the mapping.
+    """
+    if cell.magmoms is None:
+        cell.magmoms = np.full(len(cell.atoms), -9999)
+    for i, atom in enumerate(cell.atoms):
+        if atom in mapping:
+            cell.magmoms[i] = mapping[atom]
+        else:
+            LOGGER.warning(f"Atom '{atom}' at index {i} not found in mapping; magmom left unchanged.")
+    return cell
