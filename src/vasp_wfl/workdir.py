@@ -157,15 +157,15 @@ class WorkdirFinder:
         return OrderedSet(d for d in directories if Workdir(d).is_valid())
 
     @staticmethod
-    def find(start_dir, ignore_patterns=None):
-        """Identify all VASP working directories within a given starting directory and its entire subdirectory tree (recursive), including the start directory if applicable.
+    def find(rootdir, ignore_patterns=None):
+        """Identify all VASP working directories within a given root directory and its entire subdirectory tree.
 
         Hidden directories (starting with '.') are excluded from traversal.
 
         This implementation uses `pathlib.Path.walk` (available in Python 3.12+).
 
         Args:
-            start_dir: Path to the starting directory for recursive search.
+            rootdir: Path to the starting directory for recursive search.
             ignore_patterns: List of patterns to ignore (uses fnmatch syntax, e.g., ['*backup*', 'temp_*']).
 
         Returns:
@@ -177,12 +177,12 @@ class WorkdirFinder:
         workdirs = set()
         ignore_patterns = ignore_patterns or []
 
-        start_path = Path(start_dir)
-        if not hasattr(start_path, "walk"):
+        root_path = Path(rootdir)
+        if not hasattr(root_path, "walk"):
             msg = "Use Python 3.12+ to run this function!"
             raise RuntimeError(msg)
 
-        for current_dir, subdirs, _ in start_path.walk(follow_symlinks=True):
+        for current_dir, subdirs, _ in root_path.walk(follow_symlinks=True):
             # Exclude hidden subdirectories and pattern-matched directories from further traversal
             subdirs[:] = [
                 d
