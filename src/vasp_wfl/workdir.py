@@ -75,6 +75,7 @@ VASP_OUTPUT_FILES = {
     "Vaspelph.h5",
     "Vaspout.h5",
     "Vaspwave.h5",
+    "vasprun.xml",
     "VIJKL",
     "VRijkl",
     "WANPROJ",
