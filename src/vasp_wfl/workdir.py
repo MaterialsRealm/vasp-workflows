@@ -145,7 +145,7 @@ class WorkdirFinder:
     """A class for identifying VASP working directories based on the presence of specific input files."""
 
     @staticmethod
-    def filter_workdirs(directories):
+    def filter(directories):
         """Filter a list of directories to include only those that are VASP working directories.
 
         Args:
