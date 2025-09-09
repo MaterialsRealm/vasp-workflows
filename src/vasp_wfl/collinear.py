@@ -4,11 +4,13 @@ from pathlib import Path
 import numpy as np
 from pymatgen.io.vasp import Incar, Outcar, Poscar
 
+from .dirs import WorkdirFinder
 from .logger import LOGGER
 from .poscar import AtomsExtractor, LatticeExtractor, SiteExtractor
 from .spglib import SpglibCell
 
 __all__ = [
+    "FerromagneticSetter",
     "cell_from_input",
     "cell_from_output",
     "cell_to_input",
@@ -62,3 +64,37 @@ def set_ferromagnetic(cell: SpglibCell, mapping: Mapping):
         else:
             LOGGER.warning(f"Atom '{atom}' at index {i} not found in mapping; magmom left unchanged.")
     return cell
+
+
+class FerromagneticSetter:
+    """Batch processor for VASP collinear work directories."""
+
+    @staticmethod
+    def from_dirs(dirs, mapping: Mapping):
+        """Process a list of directories to set cells ferromagnetic and update INCAR/POSCAR files.
+
+        For each directory, read `INCAR` and `POSCAR`, set the cell to ferromagnetic
+        using the provided mapping, and write the updated files back.
+
+        Args:
+            dirs: List of directory paths containing `INCAR` and `POSCAR` files.
+            mapping: Mapping from atom name to magnetic moment value.
+        """
+        for d in dirs:
+            incar = Path(d) / "INCAR"
+            poscar = Path(d) / "POSCAR"
+            cell = cell_from_input(incar, poscar)
+            set_ferromagnetic(cell, mapping)
+            cell_to_input(cell, incar, poscar)
+
+    @staticmethod
+    def from_rootdir(root_dir, mapping: Mapping, **kwargs):
+        """Find all VASP workdirs under root_dir and process them with the given mapping.
+
+        Args:
+            root_dir: Root directory to search for VASP workdirs.
+            mapping: Mapping from atom name to magnetic moment value.
+            **kwargs: Additional keyword arguments for WorkdirFinder.find_workdirs.
+        """
+        dirs = list(WorkdirFinder.find_workdirs(root_dir, **kwargs))
+        FerromagneticSetter.from_dirs(dirs, mapping)
