@@ -145,44 +145,19 @@ class WorkdirFinder:
     """A class for identifying VASP working directories based on the presence of specific input files."""
 
     @staticmethod
-    def is_workdir(directory) -> bool:
-        """Determine if a given directory is a VASP working directory by checking for the presence
-        of any VASP input files (without recursing into subdirectories).
-
-        Args:
-            directory: Path to the directory to check.
-
-        Returns:
-            bool: True if the directory contains at least one VASP input file, False otherwise.
-        """
-        path = Path(directory)
-        if not path.is_dir():
-            return False
-        try:
-            files = [f.name for f in path.iterdir() if f.is_file()]
-        except OSError:
-            return False
-        for file in files:
-            if file in VASP_INPUT_FILES:
-                return True
-            if fnmatch(file, "WFULL????.tmp") or fnmatch(file, "W????.tmp"):
-                return True
-        return False
-
-    @staticmethod
-    def filter_workdirs(dir_list):
+    def filter_workdirs(directories):
         """Filter a list of directories to include only those that are VASP working directories.
 
         Args:
-            dir_list: List of directory paths to filter.
+            directories: List of directory paths to filter.
 
         Returns:
             list: List of paths that are VASP working directories.
         """
-        return {d for d in dir_list if WorkdirFinder.is_workdir(d)}
+        return OrderedSet(d for d in directories if Workdir(d).is_valid())
 
     @staticmethod
-    def find_workdirs(start_dir, ignore_patterns=None):
+    def find(start_dir, ignore_patterns=None):
         """Identify all VASP working directories within a given starting directory and its entire subdirectory tree (recursive), including the start directory if applicable.
 
         Hidden directories (starting with '.') are excluded from traversal.
@@ -215,7 +190,7 @@ class WorkdirFinder:
                 if not d.startswith(".") and not any(fnmatch(d, pattern) for pattern in ignore_patterns)
             ]
             # Check if the current directory is a working directory
-            if WorkdirFinder.is_workdir(current_dir):
+            if Workdir(current_dir).is_valid():
                 workdirs.add(Path(current_dir).resolve())
 
         return workdirs
@@ -277,7 +252,7 @@ class WorkdirClassifier:
         Returns:
             WorkdirClassifier: An instance with details populated from the found directories.
         """
-        workdirs = WorkdirFinder.find_workdirs(root_dir, ignore_patterns=ignore_patterns)
+        workdirs = WorkdirFinder.find(root_dir, ignore_patterns=ignore_patterns)
         return cls(workdirs, func, *args, **kwargs)
 
     @property
