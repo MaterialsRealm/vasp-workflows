@@ -36,6 +36,57 @@ Set of fixed-name VASP input files for detection. Temporary files with patterns
 (e.g., WFULLxxxx.tmp, Wxxxx.tmp) are handled separately using pattern matching.
 """
 
+VASP_OUTPUT_FILES = {
+    "BSEFATBAND",
+    "CHG",
+    "CHGCAR",
+    "CONTCAR",
+    "CONTCAR_ELPH",
+    "DOSCAR",
+    "DYNMATFULL",
+    "EIGENVAL",
+    "ELFCAR",
+    "IBZKPT",
+    "LOCPOT",
+    "ML_ABN",
+    "ML_EATOM",
+    "ML_FFN",
+    "ML_HEAT",
+    "ML_HIS",
+    "ML_LOGFILE",
+    "ML_REG",
+    "NMRCURBX",
+    "OSZICAR",
+    "OUTCAR",
+    "Output",
+    "PCDAT",
+    "PARCHG",
+    "Phelel_params.hdf5",
+    "POT",
+    "PRJCAR",
+    "PROCAR",
+    "PROCAR_OPT",
+    "PROOUT",
+    "REPORT",
+    "TMPCAR",
+    "UIJKL",
+    "URijkl",
+    "Vaspelph.h5",
+    "Vaspout.h5",
+    "Vaspwave.h5",
+    "VIJKL",
+    "VRijkl",
+    "WANPROJ",
+    "WAVECAR",
+    "WAVEDER",
+    "WFULLxxxx.tmp",
+    "Wxxxx.tmp",
+    "XDATCAR",
+}
+"""Set of fixed-name VASP output files for reference.
+See https://www.vasp.at/wiki/index.php/Category:Output_files
+"""
+
 
 class WorkdirFinder:
     """A class for identifying VASP working directories based on the presence of specific input files."""
