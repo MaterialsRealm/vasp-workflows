@@ -3,8 +3,8 @@ from pathlib import Path
 
 from pymatgen.io.vasp import Potcar
 
-from .dirs import WorkdirFinder
 from .poscar import ElementExtractor
+from .workdir import WorkdirFinder
 
 __all__ = ["PotcarGenerator", "PotcarValidator"]
 

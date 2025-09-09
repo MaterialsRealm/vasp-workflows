@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .dirs import WorkStatus
+from .workdir import WorkStatus
 
 __all__ = ["classify_by_force", "parse_forces_and_check_zero"]
 

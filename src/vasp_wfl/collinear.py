@@ -4,10 +4,10 @@ from pathlib import Path
 import numpy as np
 from pymatgen.io.vasp import Incar, Outcar, Poscar
 
-from .dirs import WorkdirFinder
 from .logger import LOGGER
 from .poscar import AtomsExtractor, LatticeExtractor, SiteExtractor
 from .spglib import SpglibCell
+from .workdir import WorkdirFinder
 
 __all__ = [
     "FerromagneticSetter",

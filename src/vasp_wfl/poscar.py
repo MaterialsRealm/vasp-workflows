@@ -9,8 +9,8 @@ from ase.io import read, write
 from pymatgen.io.cif import CifParser
 from pymatgen.io.vasp import Poscar
 
-from .dirs import WorkdirFinder
 from .logger import LOGGER
+from .workdir import WorkdirFinder
 
 __all__ = [
     "ElementCounter",
@@ -271,8 +271,8 @@ class PoscarContcarMover:
         """
         poscar = os.path.join(folder, "POSCAR")
         contcar = os.path.join(folder, "CONTCAR")
-        has_poscar = os.path.exists(poscar)
-        has_contcar = os.path.exists(contcar)
+        has_poscar = Path(poscar).exists()
+        has_contcar = Path(contcar).exists()
         if has_poscar:
             if has_contcar:
                 existing = [f for f in os.listdir(folder) if re.match(r"POSCAR_\\d+$", f)]

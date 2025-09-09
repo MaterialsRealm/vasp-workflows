@@ -7,8 +7,8 @@ from typing import Literal
 
 import pystache
 
-from .dirs import WorkdirFinder
 from .logger import LOGGER
+from .workdir import WorkdirFinder
 
 __all__ = ["TemplateDistributor", "TemplateModifier"]
 

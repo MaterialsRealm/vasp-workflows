@@ -12,10 +12,10 @@ import numpy as np
 import pandas as pd
 
 from .cell import get_energies, get_volume
-from .dirs import WorkdirClassifier, WorkStatus
 from .force import classify_by_force
 from .magnetization import MagnetizationParser
 from .poscar import ElementCounter
+from .workdir import WorkdirClassifier, WorkStatus
 
 __all__ = ["ResultCollector"]
 
