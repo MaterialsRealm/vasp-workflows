@@ -6,8 +6,9 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 import yaml
+from ordered_set import OrderedSet
 
-__all__ = ["WorkdirClassifier", "WorkdirFinder"]
+__all__ = ["Workdir", "WorkdirClassifier", "WorkdirFinder"]
 
 VASP_INPUT_FILES = {
     "CHGCAR",
@@ -79,13 +80,64 @@ VASP_OUTPUT_FILES = {
     "WANPROJ",
     "WAVECAR",
     "WAVEDER",
-    "WFULLxxxx.tmp",
-    "Wxxxx.tmp",
     "XDATCAR",
 }
 """Set of fixed-name VASP output files for reference.
 See https://www.vasp.at/wiki/index.php/Category:Output_files
 """
+
+
+class Workdir:
+    """Represents a VASP working directory and provides file classification utilities."""
+
+    def __init__(self, directory):
+        """Initialize with the path to the directory."""
+        self.path = Path(directory)
+        if not self.path.exists() or not self.path.is_dir():
+            msg = f"The path '{directory}' does not exist or is not a directory."
+            raise ValueError(msg)
+
+    @staticmethod
+    def is_input(filename: str) -> bool:
+        """Return True if the filename is a VASP input file (including patterns)."""
+        name = Path(filename).name
+        if name in VASP_INPUT_FILES:
+            return True
+        return fnmatch(name, "WFULL????.tmp") or fnmatch(name, "W????.tmp")
+
+    @staticmethod
+    def is_output(filename: str) -> bool:
+        """Return True if the filename is a VASP output file (including patterns)."""
+        name = Path(filename).name
+        if name in VASP_OUTPUT_FILES:
+            return True
+        return fnmatch(name, "WFULL????.tmp") or fnmatch(name, "W????.tmp")
+
+    def is_valid(self) -> bool:
+        """Return True if the directory is a VASP working directory (contains any VASP input file)."""
+        if not self.path.is_dir():
+            return False
+        return any(self.is_input(file) for file in self.files)
+
+    @property
+    def files(self):
+        """OrderedSet of all file names in the directory."""
+        return OrderedSet(f.name for f in self.path.iterdir() if f.is_file())
+
+    @property
+    def input_files(self):
+        """OrderedSet of all VASP input files present in the directory."""
+        return OrderedSet(f for f in self.files if self.is_input(f))
+
+    @property
+    def output_files(self):
+        """OrderedSet of all VASP output files present in the directory."""
+        return OrderedSet(f for f in self.files if self.is_output(f))
+
+    @property
+    def other_files(self):
+        """OrderedSet of all files in the directory that are not recognized as VASP input or output files."""
+        return self.files - self.input_files - self.output_files
 
 
 class WorkdirFinder:
