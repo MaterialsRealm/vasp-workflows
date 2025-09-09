@@ -140,13 +140,13 @@ class PotcarValidator:
 
         Args:
             root_dir (str or Path): The root directory to start the search from.
-            **kwargs: Keyword arguments passed to `WorkdirFinder.find_workdirs`.
+            **kwargs: Keyword arguments passed to `WorkdirFinder.find`.
 
         Returns:
             bool: `True` if all found POTCAR/POSCAR pairs are valid. Returns `True` if no
                   such pairs are found. Returns `False` if any pair is invalid.
         """
-        workdirs = WorkdirFinder.find_workdirs(root_dir, **kwargs)
+        workdirs = WorkdirFinder(**kwargs).find(root_dir)
         pairs_to_check = []
         for workdir_str in workdirs:
             workdir = Path(workdir_str)

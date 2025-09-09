@@ -94,7 +94,7 @@ class FerromagneticSetter:
         Args:
             root_dir: Root directory to search for VASP workdirs.
             mapping: Mapping from atom name to magnetic moment value.
-            **kwargs: Additional keyword arguments for WorkdirFinder.find_workdirs.
+            **kwargs: Additional keyword arguments for `WorkdirFinder.find`.
         """
-        dirs = list(WorkdirFinder.find_workdirs(root_dir, **kwargs))
+        dirs = list(WorkdirFinder(**kwargs).find(root_dir))
         FerromagneticSetter.from_dirs(dirs, mapping)

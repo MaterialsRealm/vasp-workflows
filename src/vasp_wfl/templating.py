@@ -39,7 +39,7 @@ class TemplateDistributor:
         """
         # Initialize VaspDirFinder to locate working directories
         finder = WorkdirFinder()
-        workdirs = finder.find_workdirs(start_dir)
+        workdirs = finder.find(start_dir)
         successful_dirs = set()
         for workdir in workdirs:
             copied_files = False

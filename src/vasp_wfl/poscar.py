@@ -295,7 +295,7 @@ class PoscarContcarMover:
     @classmethod
     def update_rootdir(cls, root_dir, ignore_patterns=None):
         """Recursively update POSCAR in all VASP workdirs under `root_dir`."""
-        workdirs = WorkdirFinder.find_workdirs(root_dir, ignore_patterns=ignore_patterns)
+        workdirs = WorkdirFinder(ignore_patterns).find(root_dir)
         try:
             for workdir in workdirs:
                 cls.update_dir(workdir)
