@@ -16,15 +16,15 @@ __all__ = ["TemplateDistributor", "TemplateModifier"]
 class TemplateDistributor:
     """Distribute template input files to VASP working directories."""
 
-    def __init__(self, src_files):
+    def __init__(self, src_files: list):
         """Initialize with a list of source file paths to copy.
 
         Args:
             src_files: List of file paths to distribute to VASP working directories.
         """
-        self.src_files = [str(Path(src_file).resolve()) for src_file in src_files if Path(src_file).is_file()]
-        for src_file in src_files:
-            if not Path(src_file).is_file():
+        self.src_files = [Path(src_file).resolve() for src_file in src_files if Path(src_file).is_file()]
+        for src_file in self.src_files:
+            if not src_file.is_file():
                 LOGGER.warning(f"Source file '{src_file}' does not exist and will be skipped.")
 
     def __call__(self, start_dir, *, overwrite=False):
