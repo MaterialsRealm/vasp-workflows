@@ -222,8 +222,7 @@ class WorkdirProcessor(ABC):
         """
         pass
 
-    @classmethod
-    def from_dirs(cls, dirs, *args, **kwargs):
+    def from_dirs(self, dirs, *args, **kwargs):
         """Instantiate and process a set of directories as Workdir instances.
 
         Args:
@@ -231,13 +230,11 @@ class WorkdirProcessor(ABC):
             *args: Additional positional arguments.
             **kwargs: Additional keyword arguments.
         """
-        processor = cls()
         for d in dirs:
             workdir = Workdir(d)
-            processor.process(workdir, *args, **kwargs)
+            self.process(workdir, *args, **kwargs)
 
-    @classmethod
-    def from_rootdir(cls, rootdir, *args, ignore_patterns=None, **kwargs):
+    def from_rootdir(self, rootdir, *args, ignore_patterns=None, **kwargs):
         """Find all valid Workdir directories under rootdir and process them.
 
         Args:
@@ -248,7 +245,7 @@ class WorkdirProcessor(ABC):
         """
         finder = WorkdirFinder(ignore_patterns=ignore_patterns)
         workdirs = finder.find(rootdir)
-        cls.from_dirs(workdirs, *args, **kwargs)
+        self.from_dirs(workdirs, *args, **kwargs)
 
 
 class WorkStatus(StrEnum):
