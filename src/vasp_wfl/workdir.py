@@ -148,6 +148,16 @@ class Workdir:
         """Return the official string representation of the Workdir."""
         return f"{self.__class__.__name__}('{self.path.absolute()}')"
 
+    def __eq__(self, other):
+        """Return True if the other Workdir has the same path."""
+        if isinstance(other, Workdir):
+            return self.path == other.path
+        return NotImplemented
+
+    def __hash__(self):
+        """Return the hash based on the path."""
+        return hash(self.path)
+
 
 class WorkdirFinder:
     """A class for identifying VASP working directories based on the presence of specific input files."""
