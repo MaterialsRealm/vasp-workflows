@@ -30,14 +30,14 @@ class ResultCollector:
     invoked.
     """
 
-    def __init__(self, root=".", atol=1e-6):
+    def __init__(self, rootdir=".", atol=1e-6):
         """Initialize the collector.
 
         Args:
-            root: Root directory to search for results.
+            rootdir: Root directory to search for results.
             atol: Absolute tolerance for energy comparison.
         """
-        self.root = Path(root)
+        self.rootdir = Path(rootdir)
         self.atol = atol
         self._info = {}
         self._collected = False
@@ -65,17 +65,17 @@ class ResultCollector:
             collector.collect()
         """
         classifier = WorkdirClassifier()
-        classifier.from_rootdir(self.root, classify_by_force, atol=self.atol)
+        classifier.from_rootdir(self.rootdir, classify_by_force, atol=self.atol)
         status_dict = classifier.details
         info = {}
 
         for folder, status in status_dict.items():
             if status["status"] == WorkStatus.DONE:
-                contcar_path = self.root / folder.path / "CONTCAR"
-                poscar_path = self.root / folder.path / "POSCAR"
+                contcar_path = self.rootdir / folder.path / "CONTCAR"
+                poscar_path = self.rootdir / folder.path / "POSCAR"
                 abs_path = str(contcar_path.resolve())
-                outcar_path = self.root / folder.path / "OUTCAR"
-                oszicar_path = self.root / folder.path / "OSZICAR"
+                outcar_path = self.rootdir / folder.path / "OUTCAR"
+                oszicar_path = self.rootdir / folder.path / "OSZICAR"
 
                 tot_mag_outcar = None
                 tot_mag_oszicar = None
