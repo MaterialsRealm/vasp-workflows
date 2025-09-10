@@ -64,7 +64,9 @@ class ResultCollector:
             collector = ResultCollector(root="./vasp_runs")
             collector.collect()
         """
-        status_dict = WorkdirClassifier.from_root(self.root, classify_by_force, atol=self.atol).details
+        classifier = WorkdirClassifier()
+        classifier.from_rootdir(self.root, classify_by_force, atol=self.atol)
+        status_dict = classifier.details
         info = {}
 
         for folder, info in status_dict.items():
