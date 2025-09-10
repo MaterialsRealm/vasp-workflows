@@ -1,6 +1,6 @@
 import json
 from abc import ABC, abstractmethod
-from collections import Counter
+from collections import Counter, OrderedDict
 from collections.abc import Callable
 from enum import StrEnum
 from fnmatch import fnmatch
@@ -261,7 +261,7 @@ class WorkdirClassifier(WorkdirProcessor):
 
     def __init__(self):
         """Initialize an empty WorkdirClassifier."""
-        self._details = {}
+        self._details = OrderedDict()
 
     def process(self, workdir: Workdir, func: Callable[..., dict], *args, **kwargs):
         """Classify a single Workdir by work status using a callback and store the result.
@@ -277,7 +277,7 @@ class WorkdirClassifier(WorkdirProcessor):
         if not isinstance(subdetails, dict) or "status" not in subdetails:
             msg = "Classifier must return a dict with key 'status'!"
             raise ValueError(msg)
-        self._details[str(workdir.path)] = subdetails
+        self._details[workdir] = subdetails
 
     @property
     def summary(self):
