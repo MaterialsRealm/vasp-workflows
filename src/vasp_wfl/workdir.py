@@ -149,7 +149,7 @@ class WorkdirFinder:
         """Initialize with optional ignore patterns.
 
         Args:
-            ignore_patterns: List of patterns to ignore (uses fnmatch syntax, e.g., ['*backup*', 'temp_*']).
+            ignore_patterns: List of patterns to ignore (uses fnmatch syntax, e.g., `['*backup*', 'temp_*']`).
         """
         self.ignore_patterns = ignore_patterns or []
 
@@ -252,57 +252,28 @@ class WorkStatus(StrEnum):
     NOT_CONVERGED = "NOT_CONVERGED"
 
 
-class WorkdirClassifier:
+class WorkdirClassifier(WorkdirProcessor):
     """Classifies VASP calculation folders by work status and provides summary and filtering utilities."""
 
-    def __init__(self, directories, func: Callable[..., dict], *args, **kwargs):
-        """Initialize and classify VASP calculation folders by work status.
+    def __init__(self):
+        """Initialize an empty WorkdirClassifier."""
+        self._details = {}
+
+    def process(self, workdir: Workdir, func: Callable[..., dict], *args, **kwargs):
+        """Classify a single Workdir by work status using a callback and store the result.
 
         Args:
-            directories (list): List of directory paths to classify.
+            workdir: A Workdir instance to classify.
             func (Callable[..., dict]): Function to classify work status.
                 Should take `(folder_path, *args, **kwargs)` and return a dict with at least 'status' key.
             *args: Additional positional arguments passed to `func`.
             **kwargs: Additional keyword arguments passed to `func`.
         """
-        details = {}
-        for directory in directories:
-            folder = Path(directory).name
-            if not Path(directory).is_dir() or folder.startswith("."):
-                continue
-
-            subdetails = func(directory, *args, **kwargs)
-            if not isinstance(subdetails, dict) or "status" not in subdetails:
-                msg = "Classifier must return a dict with key 'status'!"
-                raise ValueError(msg)
-            details[folder] = subdetails
-        self._details = details
-
-    @classmethod
-    def from_root(
-        cls,
-        root_dir,
-        func: Callable[..., dict],
-        *args,
-        ignore_patterns=None,
-        **kwargs,
-    ):
-        """Create a WorkdirClassifier from a root directory by finding and classifying all VASP workdirs.
-
-        Args:
-            root_dir: Root directory to search for VASP workdirs.
-            func (Callable[..., dict]): Function to classify work status.
-                Should take `(folder_path, *args, **kwargs)` and return a dict with at least 'status' key.
-            *args: Additional positional arguments passed to `func`.
-            ignore_patterns (list, optional): Patterns to ignore during search.
-            **kwargs: Additional keyword arguments passed to `func`.
-
-        Returns:
-            WorkdirClassifier: An instance with details populated from the found directories.
-        """
-        finder = WorkdirFinder(ignore_patterns=ignore_patterns)
-        workdirs = finder.find(root_dir)
-        return cls(workdirs, func, *args, **kwargs)
+        subdetails = func(workdir, *args, **kwargs)
+        if not isinstance(subdetails, dict) or "status" not in subdetails:
+            msg = "Classifier must return a dict with key 'status'!"
+            raise ValueError(msg)
+        self._details[str(workdir.path)] = subdetails
 
     @property
     def summary(self):
