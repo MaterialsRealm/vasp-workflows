@@ -271,7 +271,7 @@ class WorkdirClassifier(WorkdirProcessor):
 
     def __init__(self):
         """Initialize an empty WorkdirClassifier."""
-        self._details = OrderedDict()
+        self._details: dict[Workdir, dict] = OrderedDict()
 
     def process(self, workdir: Workdir, func: Callable[..., dict], *args, **kwargs):
         """Classify a single Workdir by work status using a callback and store the result.

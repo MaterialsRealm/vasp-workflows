@@ -71,11 +71,11 @@ class ResultCollector:
 
         for folder, info in status_dict.items():
             if info["status"] == WorkStatus.DONE:
-                contcar_path = self.root / folder / "CONTCAR"
-                poscar_path = self.root / folder / "POSCAR"
+                contcar_path = self.root / folder.path / "CONTCAR"
+                poscar_path = self.root / folder.path / "POSCAR"
                 abs_path = str(contcar_path.resolve())
-                outcar_path = self.root / folder / "OUTCAR"
-                oszicar_path = self.root / folder / "OSZICAR"
+                outcar_path = self.root / folder.path / "OUTCAR"
+                oszicar_path = self.root / folder.path / "OSZICAR"
 
                 tot_mag_outcar = None
                 tot_mag_oszicar = None
