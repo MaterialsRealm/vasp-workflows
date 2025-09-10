@@ -143,7 +143,7 @@ class Workdir:
 
     def __repr__(self):
         """Return the official string representation of the Workdir."""
-        return f"{self.__class__.__name__}('{self.path}')"
+        return f"{self.__class__.__name__}('{self.path.absolute()}')"
 
 
 class WorkdirFinder:
