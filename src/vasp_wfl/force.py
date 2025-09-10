@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .workdir import WorkStatus
+from .workdir import Workdir, WorkStatus
 
 __all__ = ["classify_by_force", "parse_forces_and_check_zero"]
 
@@ -25,7 +25,7 @@ def parse_forces_and_check_zero(filename, atol=1e-6):
         `bool` indicating whether `||forces_sum||_2 < atol`. If no force block
         is found, returns `(None, None)`.
     """
-    with open(filename) as f:
+    with Path(filename).open(encoding="ascii") as f:
         lines = f.readlines()
 
     last_forces_sum = None
@@ -63,7 +63,7 @@ def parse_forces_and_check_zero(filename, atol=1e-6):
     return last_forces_sum, last_is_converged
 
 
-def classify_by_force(folder_path, atol: float = 1e-6) -> dict:
+def classify_by_force(workdir: Workdir, atol: float = 1e-6) -> dict:
     """Classify a VASP calculation's status by inspecting forces in OUTCAR.
 
     Read the final force block from the OUTCAR file and determine whether the
@@ -72,13 +72,13 @@ def classify_by_force(folder_path, atol: float = 1e-6) -> dict:
     and a human-readable reason.
 
     Args:
-        folder_path: Path to the VASP calculation folder.
+        workdir: A VASP workding directory.
         atol: Absolute tolerance for force convergence.
 
     Returns:
         A dict containing `status`, `forces_sum`, and `reason`.
     """
-    outcar = Path(folder_path) / "OUTCAR"
+    outcar = workdir.path / "OUTCAR"
     if not outcar.exists():
         forces_sum = [np.nan, np.nan, np.nan]
         job_status = WorkStatus.PENDING
