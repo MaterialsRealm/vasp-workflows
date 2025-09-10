@@ -93,10 +93,13 @@ class Workdir:
     """Represents a VASP working directory and provides file classification utilities."""
 
     def __init__(self, directory):
-        """Initialize with the path to the directory."""
-        self.path = Path(directory)
+        """Initialize with the path to the directory or another Workdir instance."""
+        if isinstance(directory, Workdir):
+            self.path = directory.path
+        else:
+            self.path = Path(directory)
         if not self.path.exists() or not self.path.is_dir():
-            msg = f"The path '{directory}' does not exist or is not a directory."
+            msg = f"The path '{self.path}' does not exist or is not a directory."
             raise ValueError(msg)
 
     @staticmethod
