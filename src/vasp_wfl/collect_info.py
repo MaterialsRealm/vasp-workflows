@@ -177,8 +177,6 @@ class ResultCollector:
     def to_dataframe(self):
         """Convert collected structure information to a pandas DataFrame.
 
-        Expands the `composition` mapping into individual element columns.
-
         Raises:
             ValueError: If `collect()` has not been called yet.
 
@@ -186,7 +184,8 @@ class ResultCollector:
             df = collector.to_dataframe()
         """
         df = pd.DataFrame.from_dict(self.info, orient="index")
-        df = df.reset_index().rename(columns={"index": "index"})
+        df.insert(0, "name", [workdir.path.name for workdir in self.info])
+        df = df.reset_index(drop=True)
         # Expand composition dictionary into columns
         composition_df = df["composition"].apply(lambda x: x if isinstance(x, dict) else {}).apply(pd.Series)
         df = pd.concat([df.drop(columns=["composition"]), composition_df], axis=1)
