@@ -69,8 +69,8 @@ class ResultCollector:
         status_dict = classifier.details
         info = {}
 
-        for folder, info in status_dict.items():
-            if info["status"] == WorkStatus.DONE:
+        for folder, status in status_dict.items():
+            if status["status"] == WorkStatus.DONE:
                 contcar_path = self.root / folder.path / "CONTCAR"
                 poscar_path = self.root / folder.path / "POSCAR"
                 abs_path = str(contcar_path.resolve())
