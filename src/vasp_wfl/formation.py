@@ -1,3 +1,4 @@
+import copy
 from dataclasses import dataclass
 
 __all__ = ["Compound", "calculate_formation_energies"]
@@ -81,3 +82,27 @@ def calculate_formation_energies(info: dict) -> dict:
         formation_energy = compound.formation_energy(energy, reference_energies)
         formation_energies[folder] = formation_energy
     return formation_energies
+
+
+def merge_inner_dicts(info: dict, values: dict, key=None) -> dict:
+    """Return a new dict with values from `values` merged into the inner dicts of `info` by key.
+
+    The original `info` is not modified. For each key in `values`, update a copy of the corresponding inner dict in `info` with the value from `values`.
+    If the key does not exist in `info`, it is ignored.
+
+    Args:
+        info: Dictionary of dictionaries to copy and update.
+        values: Dictionary of values to merge into the inner dicts of `info`.
+        key: If `values` contains non-dict values, use this as the key for insertion.
+
+    Returns:
+        A new dictionary with merged inner dicts.
+    """
+    result = {k: copy.deepcopy(v) for k, v in info.items()}
+    for k, v in values.items():
+        if k in result and isinstance(result[k], dict):
+            if isinstance(v, dict):
+                result[k].update(v)
+            elif key is not None:
+                result[k][key] = v
+    return result
