@@ -1,4 +1,5 @@
 import json
+from abc import ABC, abstractmethod
 from collections import Counter
 from collections.abc import Callable
 from enum import StrEnum
@@ -8,7 +9,7 @@ from pathlib import Path
 import yaml
 from ordered_set import OrderedSet
 
-__all__ = ["Workdir", "WorkdirClassifier", "WorkdirFinder"]
+__all__ = ["Workdir", "WorkdirClassifier", "WorkdirFinder", "WorkdirProcessor"]
 
 VASP_INPUT_FILES = {
     "CHGCAR",
@@ -198,6 +199,49 @@ class WorkdirFinder:
                 workdirs.add(Path(current_dir).resolve())
 
         return workdirs
+
+
+class WorkdirProcessor(ABC):
+    """Abstract base class for processing VASP working directories."""
+
+    @abstractmethod
+    def process(self, workdir: Workdir, *args, **kwargs):
+        """Process a single Workdir instance. Must be implemented by subclasses.
+
+        Args:
+            workdir: A Workdir instance to process.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        """
+        pass
+
+    @classmethod
+    def from_dirs(cls, dirs, *args, **kwargs):
+        """Instantiate and process a set of directories as Workdir instances.
+
+        Args:
+            dirs: Iterable of directory paths.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        """
+        processor = cls()
+        for d in dirs:
+            workdir = Workdir(d)
+            processor.process(workdir, *args, **kwargs)
+
+    @classmethod
+    def from_rootdir(cls, rootdir, *args, ignore_patterns=None, **kwargs):
+        """Find all valid Workdir directories under rootdir and process them.
+
+        Args:
+            rootdir: Path to the root directory to search for Workdirs.
+            *args: Additional positional arguments.
+            ignore_patterns: List of patterns to ignore (uses fnmatch syntax, e.g., `['*backup*', 'temp_*']`).
+            **kwargs: Additional keyword arguments for `WorkdirFinder`.
+        """
+        finder = WorkdirFinder(ignore_patterns=ignore_patterns)
+        workdirs = finder.find(rootdir)
+        cls.from_dirs(workdirs, *args, **kwargs)
 
 
 class WorkStatus(StrEnum):
