@@ -141,6 +141,10 @@ class Workdir:
         """OrderedSet of all files in the directory that are not recognized as VASP input or output files."""
         return self.files - self.input_files - self.output_files
 
+    def __repr__(self):
+        """Return the official string representation of the Workdir."""
+        return f"{self.__class__.__name__}('{self.path}')"
+
 
 class WorkdirFinder:
     """A class for identifying VASP working directories based on the presence of specific input files."""
