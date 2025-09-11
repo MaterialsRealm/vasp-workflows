@@ -1,6 +1,8 @@
 import copy
 from dataclasses import dataclass
 
+import pandas as pd
+
 __all__ = ["Compound", "calculate_formation_energies"]
 
 
@@ -106,3 +108,20 @@ def merge_inner_dicts(info: dict, values: dict, key=None) -> dict:
             elif key is not None:
                 result[k][key] = v
     return result
+
+
+def merge_dfs(df1: pd.DataFrame, df2: pd.DataFrame):
+    """Return a new DataFrame with columns from `df2` merged into `df1` by index.
+
+    The original DataFrames are not modified. `df2` should have a single column.
+    The column from `df2` is added to `df1` by index alignment.
+    If an index is missing in either DataFrame, the result will have NaN for missing values.
+
+    Args:
+        df1: DataFrame with multiple columns.
+        df2: DataFrame with a single column to merge into `df1`.
+
+    Returns:
+        A new DataFrame with columns from both inputs.
+    """
+    return df1.join(df2)
