@@ -1,4 +1,6 @@
-from collections.abc import Mapping
+from collections import OrderedDict
+from collections.abc import Iterator, Mapping, Sequence
+from itertools import combinations
 from math import comb
 from pathlib import Path
 
@@ -125,3 +127,100 @@ def count_combinations(counts_by_key: Mapping) -> int:
             raise ValueError(msg)
         total *= comb(v, v // 2)
     return total
+
+
+class SpinFlipper:
+    """Compose 'ups' (+a) / 'downs' (-a) sign patterns.
+
+    system: OrderedDict[key] = (length, a)
+            - length must be even and >= 0
+            - a must be a positive integer
+    """
+
+    def __init__(self, system: OrderedDict | None = None) -> None:
+        if system is None:
+            self._system: OrderedDict[str, tuple[int, int]] = OrderedDict()
+        else:
+            system = OrderedDict(system)
+            self._validate(system)
+            self._system = system
+
+    @property
+    def system(self) -> OrderedDict:
+        return self._system
+
+    @system.setter
+    def system(self, system: Mapping) -> None:
+        system = OrderedDict(system)
+        self._validate(system)
+        self._system = system
+
+    @staticmethod
+    def _validate(od: OrderedDict) -> None:
+        for k, v in od.items():
+            if not (isinstance(v, tuple) and len(v) == 2):
+                msg = f"system[{k!r}] must be a (length, a) tuple"
+                raise TypeError(msg)
+            length, a = v
+            if not isinstance(length, int) or not isinstance(a, int):
+                msg = f"system[{k!r}] values must be ints"
+                raise TypeError(msg)
+            if length < 0:
+                msg = f"system[{k!r}]: length must be nonnegative"
+                raise ValueError(msg)
+            if length % 2:
+                msg = f"system[{k!r}]: length must be even"
+                raise ValueError(msg)
+            if a <= 0:
+                msg = f"system[{k!r}]: a must be a positive integer"
+                raise ValueError(msg)
+
+    @staticmethod
+    def count_segment(length: int) -> int:
+        """Number of balanced ups/downs for a single segment of given length."""
+        return 0 if length % 2 else comb(length, length // 2)
+
+    @property
+    def count(self) -> int:
+        """Total combinations across the current system: ∏ C(length_k, length_k/2)."""
+        total = 1
+        for length, _ in self.system.values():
+            total *= self.count_segment(length)
+        return total
+
+    def flip_segment(self, base: Sequence[int], downs: Sequence[int]) -> np.ndarray:
+        """Flip `downs` indices of an 'all-ups' base (+a) to be 'downs' (-a)."""
+        out = np.asarray(base, dtype=int).copy()
+        if downs:
+            out[np.fromiter(downs, dtype=int)] *= -1
+        return out
+
+    def iter_segment(self, length: int, a: int = 1) -> Iterator[np.ndarray]:
+        """Yield all balanced vectors (exactly half 'downs') for one segment."""
+        if length < 0 or length % 2 or a <= 0:
+            raise ValueError("length must be even/nonnegative and a > 0")
+        n = length // 2
+        base = np.full(length, a, dtype=int)  # all 'ups'
+        for downs in combinations(range(length), n):
+            yield self.flip_segment(base, downs)
+
+    def iter_all(self) -> Iterator[np.ndarray]:
+        """Yield FULL concatenated vectors across all segments (in `system` order)."""
+        items = list(self.system.items())  # already validated in __init__/setter
+        if not items:
+            return
+
+        # Backtracking to avoid materializing huge Cartesian products.
+        def _dfs_join(i: int, parts: list[np.ndarray]) -> Iterator[np.ndarray]:
+            if i == len(items):
+                yield np.concatenate(parts, dtype=int)
+                return
+            _, (length, a) = items[i]
+            base = np.full(length, a, dtype=int)
+            n = length // 2
+            for downs in combinations(range(length), n):
+                parts.append(self.flip_segment(base, downs))
+                yield from _dfs_join(i + 1, parts)
+                parts.pop()
+
+        yield from _dfs_join(0, [])
