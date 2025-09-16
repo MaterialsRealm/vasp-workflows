@@ -101,7 +101,7 @@ class FerromagneticSetter:
         FerromagneticSetter.from_dirs(dirs, mapping)
 
 
-def count_combinations(counts_by_key: dict) -> int:
+def count_combinations(counts_by_key: Mapping) -> int:
     """Return the number of ordered sign sequences with zero sum for each key.
 
     For each key in `counts_by_key`, compute the number of ordered sequences of
