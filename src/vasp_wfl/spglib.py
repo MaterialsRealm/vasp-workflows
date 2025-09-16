@@ -115,6 +115,15 @@ class SpglibCell:
     def is_axial(self, value):
         self._is_axial = None if value is None else bool(value)
 
+    @property
+    def tuple(self):
+        return (
+            self.lattice.copy(),
+            self.positions.copy(),
+            self.atoms.copy(),
+            self.magmoms.copy() if self.magmoms is not None else None,
+        )
+
     @classmethod
     def from_structure(cls, structure: Structure):
         """Create a `SpglibCell` from a pymatgen `Structure` object.
