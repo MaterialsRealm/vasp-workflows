@@ -130,11 +130,14 @@ def count_combinations(counts_by_key: Mapping) -> int:
 
 
 class SpinFlipper:
-    """Compose 'ups' (+a) / 'downs' (-a) sign patterns.
+    """Compose sign patterns of 'ups' (+a) and 'downs' (-a) for multiple segments.
 
-    system: OrderedDict[key] = (length, a)
-            - length must be even and >= 0
-            - a must be a positive integer
+    Each segment is defined by a key in `system`, with value `(length, a)`:
+        - `length`: Even integer ≥ 0, the number of sites in the segment.
+        - `a`: Any positive value, the magnitude of each site's value.
+
+    Attributes:
+        system: OrderedDict mapping keys to (length, a) tuples.
     """
 
     def __init__(self, system: OrderedDict | None = None) -> None:
@@ -162,8 +165,8 @@ class SpinFlipper:
                 msg = f"system[{k!r}] must be a (length, a) tuple"
                 raise TypeError(msg)
             length, a = v
-            if not isinstance(length, int) or not isinstance(a, int):
-                msg = f"system[{k!r}] values must be ints"
+            if not isinstance(length, int):
+                msg = f"system[{k!r}]: length must be int"
                 raise TypeError(msg)
             if length < 0:
                 msg = f"system[{k!r}]: length must be nonnegative"
@@ -171,41 +174,78 @@ class SpinFlipper:
             if length % 2:
                 msg = f"system[{k!r}]: length must be even"
                 raise ValueError(msg)
-            if a <= 0:
-                msg = f"system[{k!r}]: a must be a positive integer"
+            if not (isinstance(a, (int, float, np.floating, np.integer)) and a > 0):
+                msg = f"system[{k!r}]: a must be a positive value"
                 raise ValueError(msg)
 
     @staticmethod
     def count_segment(length: int) -> int:
-        """Number of balanced ups/downs for a single segment of given length."""
+        """Return the number of balanced ups/downs for a segment of given length.
+
+        Args:
+            length: Even integer ≥ 0.
+
+        Returns:
+            The number of ways to assign half 'ups' and half 'downs'.
+        """
         return 0 if length % 2 else comb(length, length // 2)
 
     @property
     def count(self) -> int:
-        """Total combinations across the current system: ∏ C(length_k, length_k/2)."""
+        """Return the total number of combinations for the current system.
+
+        The result is the product over all segments of C(length, length // 2).
+        """
         total = 1
         for length, _ in self.system.values():
             total *= self.count_segment(length)
         return total
 
-    def flip_segment(self, base: Sequence[int], downs: Sequence[int]) -> np.ndarray:
-        """Flip `downs` indices of an 'all-ups' base (+a) to be 'downs' (-a)."""
-        out = np.asarray(base, dtype=int).copy()
+    def flip_segment(self, base: Sequence, downs: Sequence[int]) -> np.ndarray:
+        """Return a copy of `base` with values at `downs` indices flipped in sign.
+
+        Args:
+            base: Sequence of values (all 'ups').
+            downs: Indices to flip to 'downs' (-a).
+
+        Returns:
+            A numpy array with specified indices negated.
+        """
+        out = np.asarray(base).copy()
         if downs:
             out[np.fromiter(downs, dtype=int)] *= -1
         return out
 
-    def iter_segment(self, length: int, a: int = 1) -> Iterator[np.ndarray]:
-        """Yield all balanced vectors (exactly half 'downs') for one segment."""
-        if length < 0 or length % 2 or a <= 0:
+    def iter_segment(self, length: int, a=1) -> Iterator[np.ndarray]:
+        """Yield all balanced sign vectors for a segment.
+
+        Each vector has exactly half entries as 'downs' (-a), the rest as 'ups' (+a).
+
+        Args:
+            length: Even integer ≥ 0.
+            a: Any positive value, the magnitude for each entry.
+
+        Yields:
+            Numpy arrays of shape (length,) with balanced +a/-a entries.
+
+        Raises:
+            ValueError: If length is not even/nonnegative or a ≤ 0.
+        """
+        if length < 0 or length % 2 or not (isinstance(a, (int, float, np.floating, np.integer)) and a > 0):
             raise ValueError("length must be even/nonnegative and a > 0")
         n = length // 2
-        base = np.full(length, a, dtype=int)  # all 'ups'
+        base = np.full(length, a)  # all 'ups'
         for downs in combinations(range(length), n):
             yield self.flip_segment(base, downs)
 
     def iter_all(self) -> Iterator[np.ndarray]:
-        """Yield FULL concatenated vectors across all segments (in `system` order)."""
+        """Yield all concatenated sign vectors across all segments in system order.
+
+        Each yielded array is the concatenation of one balanced vector per segment.
+
+        Yields:
+            Numpy arrays of shape (sum of all lengths,) with balanced +a/-a entries.
+        """
         items = list(self.system.items())  # already validated in __init__/setter
         if not items:
             return
