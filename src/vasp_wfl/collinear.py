@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from collections.abc import Mapping, Sequence
 from itertools import combinations
 from math import comb
@@ -13,6 +13,7 @@ from .spglib import SpglibCell
 from .workdir import WorkdirFinder
 
 __all__ = [
+    "AntiferromagneticSetter",
     "FerromagneticSetter",
     "SpinFlipper",
     "cell_from_input",
@@ -239,3 +240,74 @@ class SpinFlipper:
                 parts.pop()
 
         yield from _dfs_join(0, [])
+
+
+class AntiferromagneticSetter:
+    """Generate all possible antiferromagnetic magmom assignments for a SpglibCell.
+
+    If `cell.magmoms` is None, use a SpinFlipper system to enumerate all balanced
+    +a/-a assignments for each atom type (with even counts). Otherwise, return self.
+    """
+
+    def __init__(self, cell):
+        self.cell = cell
+        self._validate_even_counts()
+
+    def _validate_even_counts(self):
+        """Ensure all atom counts are even."""
+        counts = Counter(self.cell.atoms)
+        for atom, count in counts.items():
+            if count % 2 != 0:
+                msg = f"Atom '{atom}' count {count} is not even for antiferromagnetic assignment"
+                raise ValueError(msg)
+
+    def preprocess(self, spins, counter: Counter):
+        """Return an OrderedDict mapping atom type to (count, spin) tuples.
+
+        Args:
+            spins: Sequence of positive spins, one per atom type, in order of counter.
+            counter: Counter of atom counts, order-preserving.
+
+        Returns:
+            OrderedDict suitable for SpinFlipper.
+        """
+        if len(spins) != len(counter):
+            msg = "Length of spins must match number of atom types in counter"
+            raise ValueError(msg)
+        return OrderedDict((atom, (count, spin)) for (atom, count), spin in zip(counter.items(), spins, strict=True))
+
+    def generate(self, system: Counter, spins=None):
+        """Yield SpglibCell copies with all possible balanced magmom assignments.
+
+        Args:
+            system: Counter mapping atom type to count (order-preserving).
+            spins: Sequence of positive spins, one per atom type, in order.
+
+        Yields:
+            SpglibCell: New cell with magmoms set to each balanced configuration.
+        """
+        if self.cell.magmoms is not None:
+            yield self.cell
+            return
+
+        if spins is None:
+            msg = "spins must be provided as a sequence of positive values"
+            raise ValueError(msg)
+
+        flipper_system = self.preprocess(spins, system)
+        flipper = SpinFlipper(flipper_system)
+        atoms = list(self.cell.atoms)
+        idx = 0
+        for k, (length, _) in flipper_system.items():
+            if atoms[idx : idx + length].count(k) != length:
+                msg = f"System segment '{k}' does not match atom sequence in cell"
+                raise ValueError(msg)
+            idx += length
+
+        for magmoms in flipper.iter_all():
+            new_cell = SpglibCell(self.cell.lattice, self.cell.positions, self.cell.atoms, magmoms.copy())
+            yield new_cell
+
+    def __call__(self, system: Counter, spins=None):
+        """Alias for generate()."""
+        yield from self.generate(system, spins)
