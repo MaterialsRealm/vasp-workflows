@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from itertools import combinations
 from math import comb
 from pathlib import Path
@@ -124,17 +124,17 @@ class SpinFlipper:
             self._system = system
 
     @property
-    def system(self) -> OrderedDict:
+    def system(self):
         return self._system
 
     @system.setter
-    def system(self, system: Mapping) -> None:
+    def system(self, system: Mapping):
         system = OrderedDict(system)
         self._validate(system)
         self._system = system
 
     @staticmethod
-    def _validate(od: OrderedDict) -> None:
+    def _validate(od: OrderedDict):
         for k, v in od.items():
             if not (isinstance(v, tuple) and len(v) == 2):
                 msg = f"system[{k!r}] must be a (length, a) tuple"
@@ -154,7 +154,7 @@ class SpinFlipper:
                 raise ValueError(msg)
 
     @staticmethod
-    def count_segment(length: int) -> int:
+    def count_segment(length: int):
         """Return the number of balanced ups/downs for a segment of given length.
 
         Args:
@@ -166,7 +166,7 @@ class SpinFlipper:
         return 0 if length % 2 else comb(length, length // 2)
 
     @property
-    def count(self) -> int:
+    def count(self):
         """Return the total number of combinations for the current system.
 
         The result is the product over all segments of C(length, length // 2).
@@ -176,7 +176,7 @@ class SpinFlipper:
             total *= self.count_segment(length)
         return total
 
-    def flip_segment(self, base: Sequence, downs: Sequence[int]) -> np.ndarray:
+    def flip_segment(self, base: Sequence, downs: Sequence[int]):
         """Return a copy of `base` with values at `downs` indices flipped in sign.
 
         Args:
@@ -191,7 +191,7 @@ class SpinFlipper:
             out[np.fromiter(downs, dtype=int)] *= -1
         return out
 
-    def iter_segment(self, length: int, a=1) -> Iterator[np.ndarray]:
+    def iter_segment(self, length: int, a=1):
         """Yield all balanced sign vectors for a segment.
 
         Each vector has exactly half entries as 'downs' (-a), the rest as 'ups' (+a).
@@ -213,7 +213,7 @@ class SpinFlipper:
         for downs in combinations(range(length), n):
             yield self.flip_segment(base, downs)
 
-    def iter_all(self) -> Iterator[np.ndarray]:
+    def iter_all(self):
         """Yield all concatenated sign vectors across all segments in system order.
 
         Each yielded array is the concatenation of one balanced vector per segment.
@@ -226,7 +226,7 @@ class SpinFlipper:
             return
 
         # Backtracking to avoid materializing huge Cartesian products.
-        def _dfs_join(i: int, parts: list[np.ndarray]) -> Iterator[np.ndarray]:
+        def _dfs_join(i: int, parts: list[np.ndarray]):
             if i == len(items):
                 yield np.concatenate(parts, dtype=int)
                 return
