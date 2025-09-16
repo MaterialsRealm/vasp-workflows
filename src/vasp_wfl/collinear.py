@@ -5,6 +5,7 @@ from math import comb
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import attrs
 import numpy as np
 
 if TYPE_CHECKING:
@@ -12,7 +13,7 @@ if TYPE_CHECKING:
 
 from .logger import LOGGER
 from .spglib import SpglibCell, cell_from_input, cell_to_input
-from .workdir import WorkdirFinder, WorkdirProcessor
+from .workdir import WorkdirProcessor
 
 __all__ = [
     "AntiferromagneticSetter",
@@ -255,7 +256,7 @@ class AntiferromagneticSetter:
             idx += length
 
         for magmoms in flipper.iter_all():
-            new_cell = SpglibCell(self.cell.lattice, self.cell.positions, self.cell.atoms, magmoms.copy())
+            new_cell = attrs.evolve(self.cell, magmoms=magmoms.copy())
             yield new_cell
 
     def __call__(self, system: Counter, spins=None):
