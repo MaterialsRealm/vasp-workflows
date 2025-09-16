@@ -14,6 +14,7 @@ from .workdir import WorkdirFinder
 
 __all__ = [
     "FerromagneticSetter",
+    "SpinFlipper",
     "cell_from_input",
     "cell_from_output",
     "cell_to_input",
@@ -101,32 +102,6 @@ class FerromagneticSetter:
         """
         dirs = list(WorkdirFinder(**kwargs).find(root_dir))
         FerromagneticSetter.from_dirs(dirs, mapping)
-
-
-def count_combinations(counts_by_key: Mapping) -> int:
-    """Return the number of ordered sign sequences with zero sum for each key.
-
-    For each key in `counts_by_key`, compute the number of ordered sequences of
-    length `n` (where `n` is the value for that key) with entries from `{+x, -x}`
-    such that the sum is zero. Each value must be a nonnegative even integer.
-    The result is the product over keys of `comb(n, n // 2)`.
-
-    Args:
-        counts_by_key: Mapping from key to a nonnegative even integer count.
-
-    Returns:
-        The product of combinations for all keys.
-
-    Raises:
-        ValueError: If any value is negative or not an even integer.
-    """
-    total = 1
-    for k, v in counts_by_key.items():
-        if v < 0 or v % 2:
-            msg = f"value for {k!r} must be a nonnegative even integer; got {v}"
-            raise ValueError(msg)
-        total *= comb(v, v // 2)
-    return total
 
 
 class SpinFlipper:
