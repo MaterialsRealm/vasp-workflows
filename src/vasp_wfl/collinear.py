@@ -211,12 +211,12 @@ class AntiferromagneticSetter:
                 msg = f"Atom '{atom}' count {count} is not even for antiferromagnetic assignment"
                 raise ValueError(msg)
 
-    def preprocess(self, spins, counter: Counter):
+    def preprocess(self, counter: Counter, spins):
         """Return an OrderedDict mapping atom type to (count, spin) tuples.
 
         Args:
-            spins: Sequence of positive spins, one per atom type, in order of counter.
             counter: Counter of atom counts, order-preserving.
+            spins: Sequence of positive spins, one per atom type, in order of counter.
 
         Returns:
             OrderedDict suitable for SpinFlipper.
@@ -244,7 +244,7 @@ class AntiferromagneticSetter:
             msg = "spins must be provided as a sequence of positive values"
             raise ValueError(msg)
 
-        flipper_system = self.preprocess(spins, system)
+        flipper_system = self.preprocess(system, spins)
         flipper = SpinFlipper(flipper_system)
         atoms = list(self.cell.atoms)
         idx = 0
