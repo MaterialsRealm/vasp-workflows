@@ -1,11 +1,15 @@
 from collections import Counter, OrderedDict
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from itertools import combinations
 from math import comb
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 from pymatgen.io.vasp import Incar, Outcar, Poscar
+
+if TYPE_CHECKING:
+    from spglib import SpglibMagneticDataset
 
 from .logger import LOGGER
 from .poscar import AtomsExtractor, LatticeExtractor, SiteExtractor
@@ -19,6 +23,7 @@ __all__ = [
     "cell_from_input",
     "cell_from_output",
     "cell_to_input",
+    "filter_unique_magspg",
     "set_ferromagnetic",
 ]
 
@@ -311,3 +316,22 @@ class AntiferromagneticSetter:
     def __call__(self, system: Counter, spins=None):
         """Alias for generate()."""
         yield from self.generate(system, spins)
+
+
+def filter_unique_magspg(cells: Iterable[SpglibCell]):
+    """Filter cells to keep only unique (magmoms, spg) combinations.
+
+    Args:
+        cells: Iterable of SpglibCell objects.
+
+    Yields:
+        SpglibCell objects with unique (magmoms, spg) pairs.
+    """
+    seen: dict[SpglibMagneticDataset, SpglibCell] = {}
+    for cell in cells:
+        if cell.magmoms is None:
+            continue
+        dataset = cell.symmetry
+        if dataset is not None and dataset not in seen:
+            seen[dataset] = cell
+    return seen
