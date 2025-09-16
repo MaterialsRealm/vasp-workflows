@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 from .logger import LOGGER
 from .spglib import SpglibCell, cell_from_input, cell_to_input
-from .workdir import WorkdirFinder
+from .workdir import WorkdirFinder, WorkdirProcessor
 
 __all__ = [
     "AntiferromagneticSetter",
@@ -38,38 +38,21 @@ def set_ferromagnetic(cell: SpglibCell, mapping: Mapping):
     return cell
 
 
-class FerromagneticSetter:
+class FerromagneticSetter(WorkdirProcessor):
     """Batch processor for VASP collinear work directories."""
 
-    @staticmethod
-    def from_dirs(dirs, mapping: Mapping):
-        """Process a list of directories to set cells ferromagnetic and update INCAR/POSCAR files.
-
-        For each directory, read `INCAR` and `POSCAR`, set the cell to ferromagnetic
-        using the provided mapping, and write the updated files back.
+    def process(self, workdir, mapping: Mapping):
+        """Set the cell to ferromagnetic and update INCAR/POSCAR files in a Workdir.
 
         Args:
-            dirs: List of directory paths containing `INCAR` and `POSCAR` files.
+            workdir: Workdir instance or path containing INCAR and POSCAR.
             mapping: Mapping from atom name to magnetic moment value.
         """
-        for d in dirs:
-            incar = Path(d) / "INCAR"
-            poscar = Path(d) / "POSCAR"
-            cell = cell_from_input(incar, poscar)
-            set_ferromagnetic(cell, mapping)
-            cell_to_input(cell, incar, poscar)
-
-    @staticmethod
-    def from_rootdir(root_dir, mapping: Mapping, **kwargs):
-        """Find all VASP workdirs under root_dir and process them with the given mapping.
-
-        Args:
-            root_dir: Root directory to search for VASP workdirs.
-            mapping: Mapping from atom name to magnetic moment value.
-            **kwargs: Additional keyword arguments for `WorkdirFinder.find`.
-        """
-        dirs = list(WorkdirFinder(**kwargs).find(root_dir))
-        FerromagneticSetter.from_dirs(dirs, mapping)
+        incar = Path(workdir.path) / "INCAR"
+        poscar = Path(workdir.path) / "POSCAR"
+        cell = cell_from_input(incar, poscar)
+        set_ferromagnetic(cell, mapping)
+        cell_to_input(cell, incar, poscar)
 
 
 class SpinFlipper:
