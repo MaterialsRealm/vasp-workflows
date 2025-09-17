@@ -180,10 +180,10 @@ class SpinFlipper:
         # Backtracking to avoid materializing huge Cartesian products.
         def _dfs_join(i: int, parts: list[np.ndarray]):
             if i == len(items):
-                yield np.concatenate(parts, dtype=int)
+                yield np.concatenate(parts, dtype=float)
                 return
             _, (length, a) = items[i]
-            base = np.full(length, a, dtype=int)
+            base = np.full(length, a, dtype=float)
             n = length // 2
             for downs in combinations(range(length), n):
                 parts.append(self.flip_segment(base, downs))
