@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import attrs
 import numpy as np
 from pymatgen.core import Structure
 from pymatgen.io.vasp import Incar, Outcar, Poscar
@@ -15,6 +16,7 @@ __all__ = [
 ]
 
 
+@attrs.define
 class SpglibCell:
     """A data class to store input for the spglib library, representing a crystal structure.
 
@@ -27,103 +29,27 @@ class SpglibCell:
                  magnetism. Defaults to `None`.
     """
 
-    def __init__(
-        self,
-        lattice,
-        positions,
-        atoms,
-        magmoms=None,
-        *,
-        symprec=1e-5,
-        angle_tolerance=-1.0,
-        hall_number=0,
-        mag_symprec=-1.0,
-        is_axial=None,
-    ):
-        """Initialize a SpglibCell and validate input shapes and lengths.
+    lattice: np.ndarray = attrs.field(converter=np.asarray)
+    positions: np.ndarray = attrs.field(converter=np.asarray)
+    atoms: np.ndarray = attrs.field(converter=np.asarray)
+    magmoms: np.ndarray | None = attrs.field(default=None, converter=lambda x: x if x is None else np.asarray(x))
+    symprec: float = attrs.field(default=1e-5)
+    angle_tolerance: float = attrs.field(default=-1.0)
+    hall_number: int = attrs.field(default=0, converter=int)
+    mag_symprec: float = attrs.field(default=-1.0)
+    is_axial: bool | None = attrs.field(default=None, converter=lambda x: x if x is None else bool(x))
 
-        Args:
-            lattice: The lattice vectors as a 3x3 list of floats.
-            positions: The fractional coordinates of atoms.
-            atoms: A list of integers representing the atomic species (atomic numbers).
-            magmoms: Optional magnetic moments for each atom.
-            symprec: Symmetry search tolerance in the unit of length.
-            angle_tolerance: Symmetry search tolerance in the unit of angle degree.
-            hall_number: The Hall symbol is given by the serial number in between 1 and 530.
-            mag_symprec: Tolerance for magnetic symmetry search in the unit of magnetic moments.
-            is_axial: Whether moments are axial (for magnetic symmetry).
-
-        Raises:
-            ValueError: If input shapes or lengths are inconsistent.
-        """
-        lattice = np.asarray(lattice)
-        positions = np.asarray(positions)
-        atoms = np.asarray(atoms)
-        magmoms = None if magmoms is None else np.asarray(magmoms)
-        if lattice.shape != (3, 3):
+    def __attrs_post_init__(self):
+        if self.lattice.shape != (3, 3):
             msg = "lattice must be a 3x3 array-like structure"
             raise ValueError(msg)
-        n_sites = len(positions)
-        if len(atoms) != n_sites:
+        n_sites = len(self.positions)
+        if len(self.atoms) != n_sites:
             msg = "atoms and positions must have the same length"
             raise ValueError(msg)
-        if magmoms is not None and len(magmoms) != n_sites:
+        if self.magmoms is not None and len(self.magmoms) != n_sites:
             msg = "magmoms must have the same length as positions and atoms"
             raise ValueError(msg)
-        self.lattice = lattice
-        self.positions = positions
-        self.atoms = atoms
-        self.magmoms = magmoms
-        self._symprec = symprec
-        self._angle_tolerance = angle_tolerance
-        self._hall_number = int(hall_number)
-        self._mag_symprec = mag_symprec
-        self._is_axial = None if is_axial is None else bool(is_axial)
-
-    @property
-    def symprec(self):
-        """The symmetry finding tolerance."""
-        return self._symprec
-
-    @symprec.setter
-    def symprec(self, value):
-        self._symprec = value
-
-    @property
-    def angle_tolerance(self):
-        """The angle tolerance for symmetry finding."""
-        return self._angle_tolerance
-
-    @angle_tolerance.setter
-    def angle_tolerance(self, value):
-        self._angle_tolerance = value
-
-    @property
-    def hall_number(self):
-        """The Hall number for symmetry dataset."""
-        return self._hall_number
-
-    @hall_number.setter
-    def hall_number(self, value):
-        self._hall_number = int(value)
-
-    @property
-    def mag_symprec(self):
-        """The magnetic symmetry tolerance."""
-        return self._mag_symprec
-
-    @mag_symprec.setter
-    def mag_symprec(self, value):
-        self._mag_symprec = value
-
-    @property
-    def is_axial(self):
-        """Whether moments are axial (for magnetic symmetry)."""
-        return self._is_axial
-
-    @is_axial.setter
-    def is_axial(self, value):
-        self._is_axial = None if value is None else bool(value)
 
     @property
     def tuple(self):
