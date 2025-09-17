@@ -51,12 +51,12 @@ class SpglibCell:
             msg = "magmoms must have the same length as positions and atoms"
             raise ValueError(msg)
 
-    @property
-    def tuple(self):
+    def astuple(self, use_identifiers=True):
+        atoms = self.atom_identifiers if use_identifiers else self.atoms
         return (
             self.lattice.copy(),
             self.positions.copy(),
-            self.atoms.copy(),
+            atoms.copy(),
             self.magmoms.copy() if self.magmoms is not None else None,
         )
 
@@ -187,12 +187,7 @@ class SpglibCell:
     @property
     def symmetry(self):
         """The symmetry dataset for the cell using spglib."""
-        cell = (
-            self.lattice,
-            self.positions,
-            self.atom_identifiers,
-            self.magmoms,
-        )
+        cell = self.astuple(use_identifiers=True)
         if self.magmoms is None:
             return get_symmetry_dataset(
                 cell,
