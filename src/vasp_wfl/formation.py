@@ -64,7 +64,11 @@ def calculate_formation_energies(info: dict) -> dict:
             continue
         if len(composition) == 1:
             element = next(iter(composition))
-            reference_energies[element] = energy_per_atom
+            # Use the lowest (most negative) value if multiple are found
+            if element in reference_energies:
+                reference_energies[element] = min(reference_energies[element], energy_per_atom)
+            else:
+                reference_energies[element] = energy_per_atom
     # Calculate formation energies for compounds
     formation_energies = {}
     for folder, values in info.items():
