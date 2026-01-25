@@ -1,3 +1,4 @@
+from pandas import DataFrame
 from pymatgen.io.vasp import Oszicar, Outcar
 
 __all__ = ["MagnetizationParser"]
@@ -11,7 +12,7 @@ class MagnetizationParser:
             data = outcar.magnetization
             if not data:
                 return None
-            return sum(datum["tot"] for datum in data)
+            return DataFrame(data)
         except Exception:
             return None
 
@@ -19,8 +20,6 @@ class MagnetizationParser:
     def from_oszicar(file):
         try:
             oszicar = Oszicar(file)
-            last_step = oszicar.ionic_steps[-1]
-            mag = last_step.get("mag", None)
-            return mag
+            return DataFrame(oszicar.ionic_steps).mag
         except Exception:
             return None
