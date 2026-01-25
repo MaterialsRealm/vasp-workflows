@@ -95,12 +95,20 @@ class Workdir:
     def __init__(self, directory):
         """Initialize with the path to the directory or another Workdir instance."""
         if isinstance(directory, Workdir):
-            self.path = directory.path
-        else:
-            self.path = Path(directory)
-        if not self.path.exists() or not self.path.is_dir():
-            msg = f"The path '{self.path}' does not exist or is not a directory."
+            _path = directory.path
+        _path = Path(directory)
+        # Normalize to a resolved path and validate early
+        _path = _path.resolve()
+        if not _path.exists() or not _path.is_dir():
+            msg = f"The path '{_path}' does not exist or is not a directory."
             raise ValueError(msg)
+        # Store as a private attribute to make the public `path` read-only
+        self._path: Path = _path
+
+    @property
+    def path(self) -> Path:
+        """Return the `Path` of the workdir (read-only)."""
+        return self._path
 
     @staticmethod
     def is_input(filename: str) -> bool:
