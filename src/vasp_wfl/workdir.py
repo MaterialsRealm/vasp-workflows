@@ -212,8 +212,9 @@ class WorkdirFinder:
                 if not d.startswith(".") and not any(fnmatch(d, pattern) for pattern in self.ignore_patterns)
             ]
             # Check if the current directory is a working directory
-            if Workdir(current_dir).is_valid():
-                workdirs.add(Path(current_dir).resolve())
+            workdir = Workdir(current_dir.resolve())
+            if workdir.is_valid():
+                workdirs.add(workdir)
 
         return workdirs
 
