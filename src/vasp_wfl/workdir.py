@@ -241,13 +241,18 @@ class WorkdirProcessor(ABC):
         self._lock = threading.Lock()
 
     @abstractmethod
-    def process(self, workdir: Workdir, *args, **kwargs):
-        """Process a single Workdir instance. Must be implemented by subclasses.
+    def process(self, workdir: Workdir, *args, **kwargs) -> object:
+        """Process a single Workdir instance and return a result.
+
+        Implementations may return any object representing the processing result.
 
         Args:
             workdir: A Workdir instance to process.
             *args: Additional positional arguments.
             **kwargs: Additional keyword arguments.
+
+        Returns:
+            Any: The processing result for the given workdir.
         """
         pass
 
