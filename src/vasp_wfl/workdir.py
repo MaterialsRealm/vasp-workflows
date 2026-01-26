@@ -2,7 +2,7 @@ import json
 import threading
 from abc import ABC, abstractmethod
 from collections import Counter, OrderedDict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from enum import StrEnum
 from fnmatch import fnmatch
 from pathlib import Path
@@ -202,17 +202,16 @@ class WorkdirFinder:
             rootdir: Path to the starting directory for recursive search.
 
         Returns:
-            set: Set of VASP working directory paths (absolute paths).
+            OrderedSet: Set of VASP working directory paths (absolute paths).
 
         Raises:
             RuntimeError: If run on a Python version older than 3.12 where `Path.walk` is not available.
         """
-        workdirs = set()
+        workdirs = OrderedSet([])
         root_path = Path(rootdir)
         if not hasattr(root_path, "walk"):
             msg = "Use Python 3.12+ to run this function!"
             raise RuntimeError(msg)
-
         for current_dir, subdirs, _ in root_path.walk(follow_symlinks=True):
             # Exclude hidden subdirectories and pattern-matched directories from further traversal
             subdirs[:] = [
@@ -224,7 +223,6 @@ class WorkdirFinder:
             workdir = Workdir(current_dir.resolve())
             if workdir.is_valid():
                 workdirs.add(workdir)
-
         return workdirs
 
 
@@ -251,7 +249,7 @@ class WorkdirProcessor(ABC):
         """
         pass
 
-    def from_dirs(self, dirs, max_workers: int | None = 1, *args, **kwargs):
+    def from_dirs(self, dirs, max_workers: int = 1, *args, **kwargs):
         """Instantiate and process a set of directories as Workdir instances.
 
         This method can process directories in parallel using threads by setting
@@ -264,32 +262,64 @@ class WorkdirProcessor(ABC):
                 If ``<= 1`` processing is performed sequentially. Defaults to ``1``.
             *args: Additional positional arguments.
             **kwargs: Additional keyword arguments.
-        """
-        dirs_list = list(dirs)
-        # Sequential path for simplicity and for compatibility with subclasses
-        if not max_workers or max_workers <= 1:
-            for d in dirs_list:
-                workdir = Workdir(d)
-                self.process(workdir, *args, **kwargs)
-            return
-        futures = {}
-        errors = []
-        with ThreadPoolExecutor(max_workers=max_workers) as ex:
-            for d in dirs_list:
-                workdir = Workdir(d)
-                futures[ex.submit(self.process, workdir, *args, **kwargs)] = workdir
-            for fut in as_completed(futures):
-                exc = fut.exception()
-                if exc is not None:
-                    errors.append((futures[fut], exc))
-        if errors:
-            # Report the first failure for visibility
-            workdir, exc = errors[0]
-            msg = f"Processing failed for {workdir}: {exc}"
-            raise RuntimeError(msg) from exc
 
-    def from_rootdir(self, rootdir, max_workers: int | None = 1, *args, ignore_patterns=None, **kwargs):
-        """Find all valid Workdir directories under rootdir and process them.
+        Returns:
+            tuple[OrderedSet[Future], OrderedSet[Workdir]]: `(futures, workdirs)`. For sequential
+                processing `futures` will be an empty :class:`OrderedSet`.
+        """
+        # Build Workdir objects in submission order; keep uniqueness and order
+        workdirs = OrderedSet(Workdir(d) for d in dirs)
+        # Sequential path for simplicity and for compatibility with subclasses
+        if max_workers <= 1:
+            for workdir in workdirs:
+                # Exceptions from `process` will propagate as before
+                self.process(workdir, *args, **kwargs)
+            # Return uniform tuple: (futures, workdirs)
+            return OrderedSet([]), workdirs
+        # Parallel path: submit futures in submission order and return them
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futures = OrderedSet(ex.submit(self.process, workdir, *args, **kwargs) for workdir in workdirs)
+        return futures, workdirs
+
+    @staticmethod
+    def fetch_results(futures, workdirs):
+        """Fetch and return results from futures in submission order.
+
+        Calls ``result()`` on each future in the same order as ``workdirs`` and
+        collects the returned values into an :class:`OrderedSet` of results.
+
+        Args:
+            futures: Sequence of :class:`concurrent.futures.Future` aligned with ``workdirs``.
+            workdirs: Sequence of :class:`Workdir` in submission order.
+
+        Returns:
+            OrderedSet: Results returned by each future, in submission order.
+
+        Raises:
+            RuntimeError: If any future raised an exception. The first failure is
+                reported in submission order.
+        """
+        results = OrderedSet([])
+        # Build Workdir objects in submission order; keep uniqueness and order
+        workdirs = OrderedSet(Workdir(workdir) for workdir in workdirs)
+        for future, workdir in zip(futures, workdirs, strict=True):
+            # This will raise the underlying exception if the future failed.
+            try:
+                result = future.result()
+            except Exception as exc:
+                msg = f"Processing failed for {workdir}: {exc}"
+                raise RuntimeError(msg) from exc
+            results.add(result)
+        return results, workdirs
+
+    def from_rootdir(self, rootdir, max_workers: int = 1, *args, ignore_patterns=None, **kwargs):
+        """Find all valid Workdir directories under `rootdir` and process them.
+
+        This will discover valid workdirs (using :class:`WorkdirFinder`) and
+        submit them for processing via :meth:`from_dirs`. When running in
+        parallel mode (``max_workers > 1``) the method returns a tuple
+        ``(results, workdirs)`` where ``results`` is an :class:`OrderedSet`
+        of results returned by each Workdir, in submission order.
 
         Args:
             rootdir: Path to the root directory to search for Workdirs.
@@ -298,11 +328,20 @@ class WorkdirProcessor(ABC):
             *args: Additional positional arguments.
             ignore_patterns: List of patterns to ignore (uses fnmatch syntax, e.g., `['*backup*', 'temp_*']`).
             **kwargs: Additional keyword arguments for `WorkdirFinder`.
+
+        Returns:
+            tuple[OrderedSet, OrderedSet[Workdir]]: ``(results, workdirs)`` where
+            ``results`` is an :class:`OrderedSet` of results returned by each Workdir
+            (empty if nothing was run in parallel), and ``workdirs`` is the ordered set of discovered
+            work directories.
         """
         finder = WorkdirFinder(ignore_patterns=ignore_patterns)
-        workdirs = finder.find(rootdir)
-        # pass `max_workers` as the second positional argument for compatibility
-        self.from_dirs(workdirs, max_workers, *args, **kwargs)
+        found = finder.find(rootdir)
+        futures, workdirs = self.from_dirs(found, max_workers, *args, **kwargs)
+        if futures:
+            results, workdirs = self.fetch_results(futures, workdirs)
+            return results, workdirs
+        return OrderedSet([]), workdirs
 
 
 class WorkStatus(StrEnum):
