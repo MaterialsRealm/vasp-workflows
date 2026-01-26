@@ -41,30 +41,28 @@ class MagnetizationParser(WorkdirProcessor):
         except (OSError, ValueError, AttributeError):
             return None
 
-    def process(self, workdir, *args, **kwargs) -> object:
+    def process(self, workdir: Workdir, *, sum: bool = False, **kwargs) -> object:
         """Process a workdir and return parsed magnetization data.
 
-        Accept either a :class:`Workdir` or a path-like pointing to a folder.
-
         Args:
-            workdir: Workdir instance or path-like to a VASP working directory.
-            *args: Additional positional arguments (ignored).
-            **kwargs: Additional keyword arguments (ignored).
+            workdir: Workdir instance.
+            sum: Whether to return the sum of magnetization values. If ``True``, the
+                result is obtained by calling ``self.from_outcar(outcar_file).sum()``.
+            **kwargs: Ignored.
 
         Returns:
-            A :class:`pandas.DataFrame` or pandas `Series` with magnetization data, or
-            ``None`` if no suitable file was found or parsing failed.
+            A :class:`pandas.DataFrame` or pandas `Series` with magnetization data, a
+            scalar when ``sum`` is ``True``, or ``None`` if no suitable file was
+            found or parsing failed.
         """
-        try:
-            wd = Workdir(workdir) if not isinstance(workdir, Workdir) else workdir
-        except ValueError:
-            # invalid path -> return None to preserve original API behavior
-            return None
-
-        outcar_file = wd.path / "OUTCAR"
+        assert isinstance(workdir, Workdir)
+        outcar_file = workdir.path / "OUTCAR"
         if outcar_file.exists():
-            return self.from_outcar(outcar_file)
-        oszicar_file = wd.path / "OSZICAR"
+            df = self.from_outcar(outcar_file)
+            if df is None:
+                return None
+            return df.sum() if sum else df
+        oszicar_file = workdir.path / "OSZICAR"
         if oszicar_file.exists():
             return self.from_oszicar(oszicar_file)
         return None
