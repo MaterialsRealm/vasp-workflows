@@ -94,17 +94,19 @@ class Workdir:
     """Represents a VASP working directory and provides file classification utilities."""
 
     def __init__(self, directory):
-        """Initialize with the path to the directory or another Workdir instance."""
-        if isinstance(directory, Workdir):
-            _path = directory.path
-        _path = Path(directory)
+        """Initialize with the path to the directory or another Workdir instance.
+
+        Args:
+            directory: Path-like object or another :class:`Workdir`.
+        """
+        path = directory.path if isinstance(directory, Workdir) else Path(directory)
         # Normalize to a resolved path and validate early
-        _path = _path.resolve()
-        if not _path.exists() or not _path.is_dir():
-            msg = f"The path '{_path}' does not exist or is not a directory."
+        path = path.resolve()
+        if not path.exists() or not path.is_dir():
+            msg = f"The path '{path}' does not exist or is not a directory."
             raise ValueError(msg)
         # Store as a private attribute to make the public `path` read-only
-        self._path: Path = _path
+        self._path: Path = path
 
     @property
     def path(self) -> Path:
