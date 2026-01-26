@@ -274,18 +274,13 @@ class WorkdirProcessor(ABC):
             tuple[OrderedSet[Future], OrderedSet[Workdir]]: `(futures, workdirs)`. For sequential
                 processing `futures` will be an empty :class:`OrderedSet`.
         """
-        # Build Workdir objects in submission order; keep uniqueness and order
-        workdirs = OrderedSet(Workdir(d) for d in dirs)
-        # Sequential path for simplicity and for compatibility with subclasses
-        if max_workers <= 1:
-            for workdir in workdirs:
-                # Exceptions from `process` will propagate as before
-                self.process(workdir, *args, **kwargs)
-            # Return uniform tuple: (futures, workdirs)
-            return OrderedSet([]), workdirs
-        # Parallel path: submit futures in submission order and return them
-        with ThreadPoolExecutor(max_workers=max_workers) as ex:
-            futures = OrderedSet(ex.submit(self.process, workdir, *args, **kwargs) for workdir in workdirs)
+        # Build Workdir objects in submission order; keep uniqueness and order (deduplicate while preserving order)
+        workdirs = list(dict.fromkeys(Workdir(d) for d in dirs))
+        # Normalize `max_workers` to at least 1 and submit all tasks through a ThreadPoolExecutor.
+        # Using the executor's context manager waits for completion, so returned futures will be done.
+        worker_count = max(1, int(max_workers))
+        with ThreadPoolExecutor(max_workers=worker_count) as ex:
+            futures = [ex.submit(self.process, workdir, *args, **kwargs) for workdir in workdirs]
         return futures, workdirs
 
     @staticmethod
