@@ -1,7 +1,8 @@
 import json
+import threading
 from abc import ABC, abstractmethod
 from collections import Counter, OrderedDict
-from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import StrEnum
 from fnmatch import fnmatch
 from pathlib import Path
@@ -228,7 +229,16 @@ class WorkdirFinder:
 
 
 class WorkdirProcessor(ABC):
-    """Abstract base class for processing VASP working directories."""
+    """Abstract base class for processing VASP working directories.
+
+    Provide a default `threading.Lock` that subclasses can use to protect
+    internal mutable state when processing directories concurrently.
+    """
+
+    def __init__(self):
+        """Initialize synchronization primitives for the processor."""
+        # Provide a default lock for subclasses to use for thread-safety.
+        self._lock = threading.Lock()
 
     @abstractmethod
     def process(self, workdir: Workdir, *args, **kwargs):
@@ -241,30 +251,58 @@ class WorkdirProcessor(ABC):
         """
         pass
 
-    def from_dirs(self, dirs, *args, **kwargs):
+    def from_dirs(self, dirs, max_workers: int | None = 1, *args, **kwargs):
         """Instantiate and process a set of directories as Workdir instances.
+
+        This method can process directories in parallel using threads by setting
+        ``max_workers`` to an integer > 1. For thread-safety, subclasses that
+        mutate internal state should handle synchronization (e.g., using locks).
 
         Args:
             dirs: Iterable of directory paths.
+            max_workers: Number of worker threads to use for concurrent processing.
+                If ``<= 1`` processing is performed sequentially. Defaults to ``1``.
             *args: Additional positional arguments.
             **kwargs: Additional keyword arguments.
         """
-        for d in dirs:
-            workdir = Workdir(d)
-            self.process(workdir, *args, **kwargs)
+        dirs_list = list(dirs)
+        # Sequential path for simplicity and for compatibility with subclasses
+        if not max_workers or max_workers <= 1:
+            for d in dirs_list:
+                workdir = Workdir(d)
+                self.process(workdir, *args, **kwargs)
+            return
+        futures = {}
+        errors = []
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            for d in dirs_list:
+                workdir = Workdir(d)
+                futures[ex.submit(self.process, workdir, *args, **kwargs)] = workdir
+            for fut in as_completed(futures):
+                exc = fut.exception()
+                if exc is not None:
+                    errors.append((futures[fut], exc))
+        if errors:
+            # Report the first failure for visibility
+            workdir, exc = errors[0]
+            msg = f"Processing failed for {workdir}: {exc}"
+            raise RuntimeError(msg) from exc
 
-    def from_rootdir(self, rootdir, *args, ignore_patterns=None, **kwargs):
+    def from_rootdir(self, rootdir, max_workers: int | None = 1, *args, ignore_patterns=None, **kwargs):
         """Find all valid Workdir directories under rootdir and process them.
 
         Args:
             rootdir: Path to the root directory to search for Workdirs.
+            max_workers: Number of worker threads to use for concurrent processing.
+                If ``<= 1`` processing is sequential. Defaults to ``1``.
             *args: Additional positional arguments.
             ignore_patterns: List of patterns to ignore (uses fnmatch syntax, e.g., `['*backup*', 'temp_*']`).
             **kwargs: Additional keyword arguments for `WorkdirFinder`.
         """
         finder = WorkdirFinder(ignore_patterns=ignore_patterns)
         workdirs = finder.find(rootdir)
-        self.from_dirs(workdirs, *args, **kwargs)
+        # pass `max_workers` as the second positional argument for compatibility
+        self.from_dirs(workdirs, max_workers, *args, **kwargs)
 
 
 class WorkStatus(StrEnum):
@@ -276,27 +314,43 @@ class WorkStatus(StrEnum):
 
 
 class WorkdirClassifier(WorkdirProcessor):
-    """Classifies VASP calculation folders by work status and provides summary and filtering utilities."""
+    """Classify VASP calculation folders by work status and provide summary and filtering utilities."""
+
+    # Note: WorkdirProcessor now provides an internal lock (`self._lock`) for subclasses
 
     def __init__(self):
-        """Initialize an empty WorkdirClassifier."""
+        """Initialize an empty WorkdirClassifier.
+
+        Call :class:`WorkdirProcessor.__init__` to ensure a lock is available for
+        concurrent processing.
+        """
+        super().__init__()
         self._details: dict[Workdir, dict] = OrderedDict()
 
-    def process(self, workdir: Workdir, func: Callable[..., dict], *args, **kwargs):
+    def process(self, workdir: Workdir, *args, **kwargs):
         """Classify a single Workdir by work status using a callback and store the result.
+
+        The classifier expects the callback function to be supplied as the second positional
+        argument (i.e., ``process(workdir, func, *args, **kwargs)``) for backward
+        compatibility.
 
         Args:
             workdir: A Workdir instance to classify.
-            func (Callable[..., dict]): Function to classify work status.
-                Should take `(folder_path, *args, **kwargs)` and return a dict with at least 'status' key.
-            *args: Additional positional arguments passed to `func`.
-            **kwargs: Additional keyword arguments passed to `func`.
+            *args: Positional arguments where the first should be the callback `func`.
+            **kwargs: Keyword arguments passed to `func`.
         """
-        subdetails = func(workdir, *args, **kwargs)
+        if not args or not callable(args[0]):
+            msg = "Classifier must be called with a callable `func` as the second argument!"
+            raise ValueError(msg)
+        func = args[0]
+        func_args = args[1:]
+        subdetails = func(workdir, *func_args, **kwargs)
         if not isinstance(subdetails, dict) or "status" not in subdetails:
             msg = "Classifier must return a dict with key 'status'!"
             raise ValueError(msg)
-        self._details[workdir] = subdetails
+        # Protect concurrent writes to the internal details mapping
+        with self._lock:
+            self._details[workdir] = subdetails
 
     @property
     def summary(self):

@@ -2,6 +2,7 @@ from pandas import DataFrame
 from pymatgen.io.vasp import Oszicar, Outcar
 
 from .workdir import Workdir
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 __all__ = ["MagnetizationParser"]
 
@@ -52,3 +53,51 @@ class MagnetizationParser:
             return None
         except FileNotFoundError:
             return None
+
+    @staticmethod
+    def from_dirs(dirs, max_workers: int | None = 1, return_mapping: bool = False):
+        """Parse magnetization information from multiple directories in parallel.
+
+        Args:
+            dirs: Iterable of directory paths or :class:`Workdir` instances.
+            max_workers: Number of worker threads to use. If ``None`` or ``<= 1`` parsing
+                is performed sequentially. Defaults to 8.
+            return_mapping: If True return ``{Workdir: result}``, otherwise return a
+                list of results in the same order as ``dirs``.
+
+        Returns:
+            dict or list: Parsed magnetization data.
+        """
+        dirs_list = list(dirs)
+        workdirs = []
+        for d in dirs_list:
+            try:
+                workdirs.append(Workdir(d))
+            except ValueError:
+                # invalid workdir -> preserve order with None
+                workdirs.append(None)
+
+        # Sequential path
+        if not max_workers or max_workers <= 1:
+            results = [MagnetizationParser.from_dir(wd) if wd is not None else None for wd in workdirs]
+            if return_mapping:
+                return dict(zip(workdirs, results))
+            return results
+
+        results = {}
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futures = {ex.submit(MagnetizationParser.from_dir, wd): wd for wd in workdirs if wd is not None}
+            for fut in as_completed(futures):
+                wd = futures[fut]
+                exc = fut.exception()
+                if exc is not None:
+                    results[wd] = None
+                else:
+                    results[wd] = fut.result()
+        # include invalid (None) entries with None result
+        if return_mapping:
+            for wd in workdirs:
+                if wd is None and wd not in results:
+                    results[wd] = None
+            return results
+        return [results.get(wd) for wd in workdirs]
