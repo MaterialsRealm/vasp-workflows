@@ -8,6 +8,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 import yaml
+from tqdm import tqdm
 
 __all__ = ["Workdir", "WorkdirClassifier", "WorkdirFinder", "WorkdirProcessor"]
 
@@ -287,7 +288,7 @@ class WorkdirProcessor(ABC):
         return futures, workdirs
 
     @staticmethod
-    def fetch_results(futures, workdirs):
+    def fetch_results(futures, workdirs, *, show_progress: bool = True):
         """Fetch and return results from futures in submission order.
 
         Calls ``result()`` on each future in the same order as ``workdirs`` and
@@ -296,6 +297,8 @@ class WorkdirProcessor(ABC):
         Args:
             futures: Sequence of :class:`concurrent.futures.Future` aligned with ``workdirs``.
             workdirs: Sequence of :class:`Workdir` in submission order.
+            show_progress: If ``True``, display a tqdm progress bar while
+                collecting results.
 
         Returns:
             list: Results returned by each future, in submission order.
@@ -307,6 +310,21 @@ class WorkdirProcessor(ABC):
         results = []
         # Build Workdir objects in submission order; keep uniqueness and order
         workdirs = list(workdirs)
+        total = len(futures)
+
+        if show_progress:
+            for i in tqdm(range(total), desc="Processing", unit="workdir"):
+                future = futures[i]
+                workdir = workdirs[i]
+                try:
+                    result = future.result()
+                except Exception as exc:
+                    msg = f"Processing failed for {workdir}: {exc}"
+                    raise RuntimeError(msg) from exc
+                results.append(result)
+            return results, workdirs
+
+        # Default: no progress output
         for future, workdir in zip(futures, workdirs, strict=True):
             # This will raise the underlying exception if the future failed.
             try:
