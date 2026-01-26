@@ -8,7 +8,6 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 import yaml
-from ordered_set import OrderedSet
 
 __all__ = ["Workdir", "WorkdirClassifier", "WorkdirFinder", "WorkdirProcessor"]
 
@@ -137,23 +136,23 @@ class Workdir:
 
     @property
     def files(self):
-        """OrderedSet of all file names in the directory."""
-        return OrderedSet(f.name for f in self.path.iterdir() if f.is_file())
+        """List of all file names in the directory."""
+        return [f.name for f in self.path.iterdir() if f.is_file()]
 
     @property
     def input_files(self):
-        """OrderedSet of all VASP input files present in the directory."""
-        return OrderedSet(f for f in self.files if self.is_input(f))
+        """List of all VASP input files present in the directory."""
+        return [f for f in self.files if self.is_input(f)]
 
     @property
     def output_files(self):
-        """OrderedSet of all VASP output files present in the directory."""
-        return OrderedSet(f for f in self.files if self.is_output(f))
+        """List of all VASP output files present in the directory."""
+        return [f for f in self.files if self.is_output(f)]
 
     @property
     def other_files(self):
-        """OrderedSet of all files in the directory that are not recognized as VASP input or output files."""
-        return self.files - self.input_files - self.output_files
+        """List of all files in the directory that are not recognized as VASP input or output files."""
+        return [f for f in self.files if f not in self.input_files and f not in self.output_files]
 
     def __repr__(self):
         """Return the official string representation of the Workdir."""
@@ -189,9 +188,9 @@ class WorkdirFinder:
             directories: List of directory paths to filter.
 
         Returns:
-            list: List of paths that are VASP working directories.
+            list: List of paths that are VASP working directories (duplicates removed).
         """
-        return OrderedSet(d for d in directories if Workdir(d).is_valid())
+        return list(dict.fromkeys(d for d in directories if Workdir(d).is_valid()))
 
     def find(self, rootdir):
         """Identify all VASP working directories within a given root directory and its entire subdirectory tree.
@@ -209,7 +208,7 @@ class WorkdirFinder:
         Raises:
             RuntimeError: If run on a Python version older than 3.12 where `Path.walk` is not available.
         """
-        workdirs = OrderedSet([])
+        workdirs = []
         root_path = Path(rootdir)
         if not hasattr(root_path, "walk"):
             msg = "Use Python 3.12+ to run this function!"
@@ -223,8 +222,8 @@ class WorkdirFinder:
             ]
             # Check if the current directory is a working directory
             workdir = Workdir(current_dir.resolve())
-            if workdir.is_valid():
-                workdirs.add(workdir)
+            if workdir.is_valid() and workdir not in workdirs:
+                workdirs.append(workdir)
         return workdirs
 
 
@@ -271,11 +270,15 @@ class WorkdirProcessor(ABC):
             **kwargs: Additional keyword arguments.
 
         Returns:
-            tuple[OrderedSet[Future], OrderedSet[Workdir]]: `(futures, workdirs)`. For sequential
-                processing `futures` will be an empty :class:`OrderedSet`.
+            tuple[list[Future], list[Workdir]]: `(futures, workdirs)`. Returns a
+                list of :class:`concurrent.futures.Future` objects (one per workdir) and a list of
+                :class:`Workdir` in submission order. The method uses a :class:`ThreadPoolExecutor`
+                and waits for all tasks to complete before returning, so the returned futures
+                will be completed on return. Exceptions from processing are captured in their
+                corresponding futures.
         """
         # Build Workdir objects in submission order; keep uniqueness and order (deduplicate while preserving order)
-        workdirs = list(dict.fromkeys(Workdir(d) for d in dirs))
+        workdirs = list(dirs)
         # Normalize `max_workers` to at least 1 and submit all tasks through a ThreadPoolExecutor.
         # Using the executor's context manager waits for completion, so returned futures will be done.
         worker_count = max(1, int(max_workers))
@@ -295,15 +298,15 @@ class WorkdirProcessor(ABC):
             workdirs: Sequence of :class:`Workdir` in submission order.
 
         Returns:
-            OrderedSet: Results returned by each future, in submission order.
+            list: Results returned by each future, in submission order.
 
         Raises:
             RuntimeError: If any future raised an exception. The first failure is
                 reported in submission order.
         """
-        results = OrderedSet([])
+        results = []
         # Build Workdir objects in submission order; keep uniqueness and order
-        workdirs = OrderedSet(Workdir(workdir) for workdir in workdirs)
+        workdirs = list(workdirs)
         for future, workdir in zip(futures, workdirs, strict=True):
             # This will raise the underlying exception if the future failed.
             try:
@@ -311,7 +314,7 @@ class WorkdirProcessor(ABC):
             except Exception as exc:
                 msg = f"Processing failed for {workdir}: {exc}"
                 raise RuntimeError(msg) from exc
-            results.add(result)
+            results.append(result)
         return results, workdirs
 
     def from_rootdir(self, rootdir, max_workers: int = 1, *args, ignore_patterns=None, **kwargs):
@@ -343,7 +346,7 @@ class WorkdirProcessor(ABC):
         if futures:
             results, workdirs = self.fetch_results(futures, workdirs)
             return results, workdirs
-        return OrderedSet([]), workdirs
+        return [], workdirs
 
 
 class WorkStatus(StrEnum):
