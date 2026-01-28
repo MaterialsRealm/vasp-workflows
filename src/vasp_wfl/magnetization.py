@@ -1,6 +1,7 @@
 from pandas import DataFrame
 from pymatgen.io.vasp import Oszicar, Outcar
 
+from .poscar import ElementCounter, ElementExtractor
 from .workdir import Workdir, WorkdirProcessor
 
 __all__ = ["MagnetizationParser"]
@@ -39,6 +40,48 @@ class MagnetizationParser(WorkdirProcessor):
             oszicar = Oszicar(file)
             return DataFrame(oszicar.ionic_steps).mag
         except (OSError, ValueError, AttributeError):
+            return None
+
+    @staticmethod
+    def element_average_magnetization(workdir: Workdir):
+        """Calculate average magnetization per element.
+
+        Reads structure from CONTCAR/POSCAR and magnetization from OUTCAR.
+        Dynamically averages all orbital columns (excluding 'tot').
+
+        Args:
+            workdir: Workdir instance.
+
+        Returns:
+            pandas.DataFrame: DataFrame with element index and orbital columns,
+            containing average values. Rows are sorted by element occurrence order.
+            Returns None if files are missing or parsing fails.
+        """
+        try:
+            path = workdir.path
+            source = path / "CONTCAR" if (path / "CONTCAR").exists() else path / "POSCAR"
+            if not source.exists() or not (outcar := path / "OUTCAR").exists():
+                return None
+
+            elements = ElementExtractor.from_file(source)
+            counts = ElementCounter.from_file(source)
+            # Reconstruct atom list assuming VASP block order
+            atom_labels = []
+            for element in elements:
+                atom_labels.extend([element.symbol] * counts[element])
+            mag = MagnetizationParser.from_outcar(outcar)
+            if mag is None or len(mag) != len(atom_labels):
+                return None
+
+            mag["element"] = atom_labels
+            cols = [col for col in mag.columns if col not in {"tot", "element"}]
+
+            if not cols:
+                return None
+
+            df = mag.groupby("element")[cols].mean()
+            return df.reindex([element.symbol for element in elements])
+        except Exception:
             return None
 
     def process(self, workdir: Workdir, *, sum: bool = False, **kwargs) -> object:
