@@ -1,7 +1,7 @@
 from pandas import DataFrame
 from pymatgen.io.vasp import Oszicar, Outcar
 
-from .poscar import ElementCounter, ElementExtractor
+from .poscar import ElementCounter
 from .workdir import Workdir, WorkdirProcessor
 
 __all__ = ["MagnetizationParser"]
@@ -54,8 +54,8 @@ class MagnetizationParser(WorkdirProcessor):
 
         Returns:
             pandas.DataFrame: DataFrame with element index and orbital columns,
-            containing average values. Rows are sorted by element occurrence order.
-            Returns None if files are missing or parsing fails.
+            containing average values. Rows are sorted by element occurrence order
+            as recorded by `ElementCounter`. Returns `None` if files are missing or parsing fails.
         """
         try:
             path = workdir.path
@@ -63,12 +63,11 @@ class MagnetizationParser(WorkdirProcessor):
             if not source.exists() or not (outcar := path / "OUTCAR").exists():
                 return None
 
-            elements = ElementExtractor.from_file(source)
             counts = ElementCounter.from_file(source)
-            # Reconstruct atom list assuming VASP block order
+            # Reconstruct atom list assuming VASP block order preserved in ElementCounter
             atom_labels = []
-            for element in elements:
-                atom_labels.extend([element.symbol] * counts[element])
+            for element, count in counts.items():
+                atom_labels.extend([element.symbol] * count)
             mag = MagnetizationParser.from_outcar(outcar)
             if mag is None or len(mag) != len(atom_labels):
                 return None
@@ -80,8 +79,9 @@ class MagnetizationParser(WorkdirProcessor):
                 return None
 
             df = mag.groupby("element")[cols].mean()
-            return df.reindex([element.symbol for element in elements])
-        except Exception:
+            # Use the insertion order of ElementCounter keys for the index
+            return df.reindex([element.symbol for element in counts])
+        except Exception:  # FIXME: Not all files have the same order of Fe-Co-S
             return None
 
     def process(self, workdir: Workdir, *, sum: bool = False, **kwargs) -> object:
