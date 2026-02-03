@@ -99,6 +99,62 @@ class MagnetizationParser(WorkdirProcessor):
         except Exception:  # FIXME: Not all files have the same order of Fe-Co-S
             return None
 
+    @staticmethod
+    def element_total_magnetization(workdir: Workdir, *, flatten: bool = False):
+        """Calculate total magnetization per element.
+
+        Reads structure from CONTCAR/POSCAR and magnetization from OUTCAR.
+        Dynamically sums all orbital columns (excluding 'tot').
+
+        Args:
+            workdir: Workdir instance.
+            flatten: If ``True``, return a 1D series ordered by element then orbital,
+                e.g. ``Fe_s, Fe_p, Fe_d, Co_s, ...``. Defaults to ``False``.
+
+        Returns:
+            pandas.DataFrame: DataFrame with element index and orbital columns,
+            containing summed values. Rows are sorted by element occurrence order
+            as recorded by `ElementCounter`. If ``flatten`` is ``True``, returns a
+            pandas.Series with index labels in element-then-orbital order.
+            Returns `None` if files are missing or parsing fails.
+        """
+        try:
+            path = workdir.path
+            source = path / "CONTCAR" if (path / "CONTCAR").exists() else path / "POSCAR"
+            if not source.exists() or not (outcar := path / "OUTCAR").exists():
+                return None
+
+            counts = ElementCounter.from_file(source)
+            # Reconstruct atom list assuming VASP block order preserved in ElementCounter
+            atom_labels = []
+            for element, count in counts.items():
+                atom_labels.extend([element.symbol] * count)
+
+            mag = MagnetizationParser.from_outcar(outcar)
+            if mag is None or len(mag) != len(atom_labels):
+                return None
+
+            mag["element"] = atom_labels
+            cols = [col for col in mag.columns if col not in {"tot", "element"}]
+
+            if not cols:
+                return None
+
+            df = mag.groupby("element")[cols].sum()
+            df = df.reindex([element.symbol for element in counts])
+            if not flatten:
+                return df
+
+            values = []
+            labels = []
+            for element in df.index:
+                for col in cols:
+                    labels.append(f"{element}_{col}")
+                    values.append(df.loc[element, col])
+            return DataFrame(values, index=labels).iloc[:, 0]
+        except Exception:
+            return None
+
     def process(self, workdir: Workdir, *, sum: bool = False, **kwargs) -> object:
         """Process a workdir and return parsed magnetization data.
 
