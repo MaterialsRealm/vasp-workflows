@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pandas import DataFrame
 from pymatgen.io.vasp import Oszicar, Outcar
 
@@ -154,6 +156,72 @@ class MagnetizationParser(WorkdirProcessor):
             return DataFrame(values, index=labels).iloc[:, 0]
         except Exception:
             return None
+
+    @staticmethod
+    def to_csv(
+        rootdir,
+        orbitals=("s", "p", "d"),
+        element_order=None,
+        output=None,
+    ):
+        """Aggregate element-average magnetization across subfolders into a CSV-ready table.
+
+        Iterates immediate subdirectories of ``rootdir`` and computes element-average
+        magnetization for each. Rows are indexed by the subdirectory name (base name).
+
+        Args:
+            rootdir: Root directory containing subfolders with VASP outputs.
+            orbitals: Orbital column order to stack per element (default: s, p, d).
+            element_order: Optional explicit element order (e.g., ["Fe", "Co", "S"]).
+                If None, uses the element order from the first valid workdir.
+            output: Optional path to write the CSV. If None, only returns DataFrame.
+
+        Returns:
+            pandas.DataFrame with rows per subfolder and columns ordered by
+            element then orbital, e.g. ``Fe_s, Fe_p, Fe_d, Co_s, ...``.
+        """
+        root = Path(rootdir).expanduser().resolve()
+        rows = {}
+        col_order = None
+
+        for sub in sorted([p for p in root.iterdir() if p.is_dir()]):
+            try:
+                wd = Workdir(sub)
+            except ValueError:
+                rows[sub.name] = {}
+                continue
+
+            df = MagnetizationParser.element_average_magnetization(wd, flatten=False)
+            if df is None or df.empty:
+                rows[sub.name] = {}
+                continue
+
+            elements = list(element_order) if element_order is not None else list(df.index)
+            if col_order is None:
+                col_order = [f"{el}_{orb}" for el in elements for orb in orbitals]
+
+            row = {}
+            for el in elements:
+                for orb in orbitals:
+                    col = f"{el}_{orb}"
+                    if el in df.index and orb in df.columns:
+                        row[col] = df.loc[el, orb]
+                    else:
+                        row[col] = float("nan")
+
+            rows[sub.name] = row
+
+        result = DataFrame.from_dict(rows, orient="index")
+        if col_order is None:
+            col_order = []
+        extras = [c for c in result.columns if c not in col_order]
+        result = result.reindex(columns=col_order + extras)
+
+        if output is not None:
+            output_path = Path(output).expanduser()
+            result.to_csv(output_path, index=True)
+
+        return result
 
     def process(self, workdir: Workdir, *, sum: bool = False, **kwargs) -> object:
         """Process a workdir and return parsed magnetization data.
