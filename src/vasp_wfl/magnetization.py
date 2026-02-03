@@ -43,7 +43,7 @@ class MagnetizationParser(WorkdirProcessor):
             return None
 
     @staticmethod
-    def element_average_magnetization(workdir: Workdir):
+    def element_average_magnetization(workdir: Workdir, *, flatten: bool = False):
         """Calculate average magnetization per element.
 
         Reads structure from CONTCAR/POSCAR and magnetization from OUTCAR.
@@ -51,11 +51,15 @@ class MagnetizationParser(WorkdirProcessor):
 
         Args:
             workdir: Workdir instance.
+            flatten: If ``True``, return a 1D series ordered by element then orbital,
+                e.g. ``Fe_s, Fe_p, Fe_d, Co_s, ...``. Defaults to ``False``.
 
         Returns:
             pandas.DataFrame: DataFrame with element index and orbital columns,
             containing average values. Rows are sorted by element occurrence order
-            as recorded by `ElementCounter`. Returns `None` if files are missing or parsing fails.
+            as recorded by `ElementCounter`. If ``flatten`` is ``True``, returns a
+            pandas.Series with index labels in element-then-orbital order.
+            Returns `None` if files are missing or parsing fails.
         """
         try:
             path = workdir.path
@@ -80,7 +84,18 @@ class MagnetizationParser(WorkdirProcessor):
 
             df = mag.groupby("element")[cols].mean()
             # Use the insertion order of ElementCounter keys for the index
-            return df.reindex([element.symbol for element in counts])
+            df = df.reindex([element.symbol for element in counts])
+            if not flatten:
+                return df
+
+            # Flatten to a 1D series in element-then-orbital order.
+            values = []
+            labels = []
+            for element in df.index:
+                for col in cols:
+                    labels.append(f"{element}_{col}")
+                    values.append(df.loc[element, col])
+            return DataFrame(values, index=labels).iloc[:, 0]
         except Exception:  # FIXME: Not all files have the same order of Fe-Co-S
             return None
 
