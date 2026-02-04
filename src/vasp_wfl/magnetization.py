@@ -24,6 +24,9 @@ class MagnetizationParser(WorkdirProcessor):
     def from_outcar(file):
         """Return magnetization DataFrame parsed from OUTCAR, or ``None`` on failure.
 
+        The returned DataFrame excludes the `tot` column (if present) and will
+        return ``None`` if no orbital columns remain.
+
         Only common I/O and parsing errors are caught and result in ``None``.
         """
         try:
@@ -31,7 +34,13 @@ class MagnetizationParser(WorkdirProcessor):
             data = outcar.magnetization
             if not data:
                 return None
-            return DataFrame(data)
+            df = DataFrame(data)
+            # Drop the total column if present; keep only orbital columns.
+            if "tot" in df.columns:
+                df = df.drop(columns=["tot"])
+            if df.empty:
+                return None
+            return df
         except (OSError, ValueError, AttributeError):
             return None
 
