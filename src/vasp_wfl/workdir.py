@@ -1,10 +1,10 @@
 import json
 import threading
-from abc import ABC, abstractmethod
 from collections import Counter, OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from enum import StrEnum
 from fnmatch import fnmatch
+from functools import partial
 from pathlib import Path
 
 import yaml
@@ -228,143 +228,66 @@ class WorkdirFinder:
         return workdirs
 
 
-class WorkdirProcessor(ABC):
-    """Abstract base class for processing VASP working directories.
-
-    Provide a default `threading.Lock` that subclasses can use to protect
-    internal mutable state when processing directories concurrently.
-    """
-
-    def __init__(self):
-        """Initialize synchronization primitives for the processor."""
-        # Provide a default lock for subclasses to use for thread-safety.
-        self._lock = threading.Lock()
-
-    @abstractmethod
-    def process(self, workdir: Workdir, *args, **kwargs) -> object:
-        """Process a single Workdir instance and return a result.
-
-        Implementations may return any object representing the processing result.
-
-        Args:
-            workdir: A Workdir instance to process.
-            *args: Additional positional arguments.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            Any: The processing result for the given workdir.
-        """
-        pass
-
-    def from_dirs(self, dirs, max_workers: int = 1, *args, **kwargs):
-        """Instantiate and process a set of directories as Workdir instances.
-
-        This method can process directories in parallel using threads by setting
-        ``max_workers`` to an integer > 1. For thread-safety, subclasses that
-        mutate internal state should handle synchronization (e.g., using locks).
-
-        Args:
-            dirs: Iterable of directory paths.
-            max_workers: Number of worker threads to use for concurrent processing.
-                If ``<= 1`` processing is performed sequentially. Defaults to ``1``.
-            *args: Additional positional arguments.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            tuple[list[Future], list[Workdir]]: `(futures, workdirs)`. Returns a
-                list of :class:`concurrent.futures.Future` objects (one per workdir) and a list of
-                :class:`Workdir` in submission order. The method uses a :class:`ThreadPoolExecutor`
-                and waits for all tasks to complete before returning, so the returned futures
-                will be completed on return. Exceptions from processing are captured in their
-                corresponding futures.
-        """
-        # Build Workdir objects in submission order; keep uniqueness and order (deduplicate while preserving order)
-        workdirs = list(dirs)
-        # Normalize `max_workers` to at least 1 and submit all tasks through a ThreadPoolExecutor.
-        # Using the executor's context manager waits for completion, so returned futures will be done.
-        worker_count = max(1, int(max_workers))
-        with ThreadPoolExecutor(max_workers=worker_count) as ex:
-            futures = [ex.submit(self.process, workdir, *args, **kwargs) for workdir in workdirs]
-        return futures, workdirs
+class WorkdirProcessor:
+    """Utilities for parallel processing of VASP working directories."""
 
     @staticmethod
-    def fetch_results(futures, workdirs, *, show_progress: bool = True):
-        """Fetch and return results from futures in submission order.
-
-        Calls ``result()`` on each future in the same order as ``workdirs`` and
-        collects the returned values into an :class:`OrderedSet` of results.
+    def from_dirs(dirs, fn, *, executor):
+        """Submit ``fn(workdir)`` for each dir.
 
         Args:
-            futures: Sequence of :class:`concurrent.futures.Future` aligned with ``workdirs``.
-            workdirs: Sequence of :class:`Workdir` in submission order.
-            show_progress: If ``True``, display a tqdm progress bar while
-                collecting results.
+            dirs: Iterable of :class:`Workdir` instances.
+            fn: Callable accepting a single :class:`Workdir` argument.
+            executor: A :class:`concurrent.futures.Executor` used to submit tasks.
 
         Returns:
-            list: Results returned by each future, in submission order.
-
-        Raises:
-            RuntimeError: If any future raised an exception. The first failure is
-                reported in submission order.
+            zip: Lazy ``zip(workdirs, futures)`` in submission order.
         """
-        results = []
-        # Build Workdir objects in submission order; keep uniqueness and order
-        workdirs = list(workdirs)
-        total = len(futures)
+        workdirs = list(dirs)
+        futures = [executor.submit(fn, wd) for wd in workdirs]
+        return zip(workdirs, futures)
 
-        if show_progress:
-            for i in tqdm(range(total), desc="Processing", unit="workdir"):
-                future = futures[i]
-                workdir = workdirs[i]
-                try:
-                    result = future.result()
-                except Exception as exc:
-                    msg = f"Processing failed for {workdir}: {exc}"
-                    raise RuntimeError(msg) from exc
-                results.append(result)
-            return results, workdirs
-
-        # Default: no progress output
-        for future, workdir in zip(futures, workdirs, strict=True):
-            # This will raise the underlying exception if the future failed.
-            try:
-                result = future.result()
-            except Exception as exc:
-                msg = f"Processing failed for {workdir}: {exc}"
-                raise RuntimeError(msg) from exc
-            results.append(result)
-        return results, workdirs
-
-    def from_rootdir(self, rootdir, max_workers: int = 1, *args, ignore_patterns=None, **kwargs):
-        """Find all valid Workdir directories under `rootdir` and process them.
-
-        This will discover valid workdirs (using :class:`WorkdirFinder`) and
-        submit them for processing via :meth:`from_dirs`. When running in
-        parallel mode (``max_workers > 1``) the method returns a tuple
-        ``(results, workdirs)`` where ``results`` is an :class:`OrderedSet`
-        of results returned by each Workdir, in submission order.
+    @staticmethod
+    def from_rootdir(rootdir, fn, *, executor, ignore_patterns=None):
+        """Discover workdirs under *rootdir* and submit *fn* for each.
 
         Args:
-            rootdir: Path to the root directory to search for Workdirs.
-            max_workers: Number of worker threads to use for concurrent processing.
-                If ``<= 1`` processing is sequential. Defaults to ``1``.
-            *args: Additional positional arguments.
-            ignore_patterns: List of patterns to ignore (uses fnmatch syntax, e.g., `['*backup*', 'temp_*']`).
-            **kwargs: Additional keyword arguments for `WorkdirFinder`.
+            rootdir: Path to the root directory to search.
+            fn: Callable accepting a single :class:`Workdir` argument.
+            executor: A :class:`concurrent.futures.Executor` used to submit tasks.
+            ignore_patterns: Optional list of fnmatch patterns to skip directories.
 
         Returns:
-            tuple[OrderedSet, OrderedSet[Workdir]]: ``(results, workdirs)`` where
-            ``results`` is an :class:`OrderedSet` of results returned by each Workdir
-            (empty if nothing was run in parallel), and ``workdirs`` is the ordered set of discovered
-            work directories.
+            zip: Lazy ``zip(workdirs, futures)`` in submission order.
         """
         finder = WorkdirFinder(ignore_patterns=ignore_patterns)
         found = finder.find(rootdir)
-        futures, workdirs = self.from_dirs(found, max_workers, *args, **kwargs)
-        if futures:
-            results, workdirs = self.fetch_results(futures, workdirs)
-            return results, workdirs
-        return [], workdirs
+        return WorkdirProcessor.from_dirs(found, fn, executor=executor)
+
+    @staticmethod
+    def fetch_results(workdirs_futures, *, show_progress=True):
+        """Consume ``(workdir, future)`` pairs and collect results.
+
+        Args:
+            workdirs_futures: Iterable of ``(workdir, future)`` pairs.
+            show_progress: If ``True``, display a tqdm progress bar.
+
+        Returns:
+            list[tuple[Workdir, Any]]: Collected ``(workdir, result)`` pairs.
+
+        Raises:
+            RuntimeError: If any future raised an exception.
+        """
+        pairs = list(workdirs_futures)
+        results = []
+        iterable = tqdm(pairs, desc="Processing", unit="workdir") if show_progress else pairs
+        for workdir, future in iterable:
+            try:
+                result = future.result()
+            except Exception as exc:
+                raise RuntimeError(f"Processing failed for {workdir}: {exc}") from exc
+            results.append((workdir, result))
+        return results
 
 
 class WorkStatus(StrEnum):
@@ -375,44 +298,56 @@ class WorkStatus(StrEnum):
     NOT_CONVERGED = "NOT_CONVERGED"
 
 
-class WorkdirClassifier(WorkdirProcessor):
+class WorkdirClassifier:
     """Classify VASP calculation folders by work status and provide summary and filtering utilities."""
 
-    # Note: WorkdirProcessor now provides an internal lock (`self._lock`) for subclasses
-
     def __init__(self):
-        """Initialize an empty WorkdirClassifier.
-
-        Call :class:`WorkdirProcessor.__init__` to ensure a lock is available for
-        concurrent processing.
-        """
-        super().__init__()
+        """Initialize an empty WorkdirClassifier."""
+        self._lock = threading.Lock()
         self._details: dict[Workdir, dict] = OrderedDict()
 
-    def process(self, workdir: Workdir, *args, **kwargs):
-        """Classify a single Workdir by work status using a callback and store the result.
+    def _wrap_callback(self, fn):
+        """Wrap *fn* so that its result is validated and stored thread-safely."""
 
-        The classifier expects the callback function to be supplied as the second positional
-        argument (i.e., ``process(workdir, func, *args, **kwargs)``) for backward
-        compatibility.
+        def _inner(workdir):
+            subdetails = fn(workdir)
+            if not isinstance(subdetails, dict) or "status" not in subdetails:
+                raise ValueError("Classifier callback must return a dict with key 'status'!")
+            with self._lock:
+                self._details[workdir] = subdetails
+
+        return _inner
+
+    def from_rootdir(self, rootdir, fn, *, max_workers=1, ignore_patterns=None, **kwargs):
+        """Discover workdirs under *rootdir*, classify each with *fn*.
 
         Args:
-            workdir: A Workdir instance to classify.
-            *args: Positional arguments where the first should be the callback `func`.
-            **kwargs: Keyword arguments passed to `func`.
+            rootdir: Root directory to search.
+            fn: Callable accepting a :class:`Workdir` and returning a dict with key ``'status'``.
+            max_workers: Number of worker threads. Defaults to ``1``.
+            ignore_patterns: Optional list of fnmatch patterns to skip directories.
+            **kwargs: Extra keyword arguments forwarded to *fn* via :func:`functools.partial`.
         """
-        if not args or not callable(args[0]):
-            msg = "Classifier must be called with a callable `func` as the second argument!"
-            raise ValueError(msg)
-        func = args[0]
-        func_args = args[1:]
-        subdetails = func(workdir, *func_args, **kwargs)
-        if not isinstance(subdetails, dict) or "status" not in subdetails:
-            msg = "Classifier must return a dict with key 'status'!"
-            raise ValueError(msg)
-        # Protect concurrent writes to the internal details mapping
-        with self._lock:
-            self._details[workdir] = subdetails
+        callback = partial(fn, **kwargs) if kwargs else fn
+        wrapped = self._wrap_callback(callback)
+        with ThreadPoolExecutor(max_workers=max(1, int(max_workers))) as ex:
+            pairs = WorkdirProcessor.from_rootdir(rootdir, wrapped, executor=ex, ignore_patterns=ignore_patterns)
+            WorkdirProcessor.fetch_results(pairs, show_progress=False)
+
+    def from_dirs(self, dirs, fn, *, max_workers=1, **kwargs):
+        """Classify each directory in *dirs* with *fn*.
+
+        Args:
+            dirs: Iterable of :class:`Workdir` instances.
+            fn: Callable accepting a :class:`Workdir` and returning a dict with key ``'status'``.
+            max_workers: Number of worker threads. Defaults to ``1``.
+            **kwargs: Extra keyword arguments forwarded to *fn* via :func:`functools.partial`.
+        """
+        callback = partial(fn, **kwargs) if kwargs else fn
+        wrapped = self._wrap_callback(callback)
+        with ThreadPoolExecutor(max_workers=max(1, int(max_workers))) as ex:
+            pairs = WorkdirProcessor.from_dirs(dirs, wrapped, executor=ex)
+            WorkdirProcessor.fetch_results(pairs, show_progress=False)
 
     @property
     def summary(self):
