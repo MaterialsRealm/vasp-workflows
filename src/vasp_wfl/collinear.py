@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
 from .logger import LOGGER
 from .spglib import SpglibCell, cell_from_input, cell_to_input
-from .workdir import WorkdirProcessor
 
 __all__ = [
     "AntiferromagneticSetter",
@@ -39,10 +38,11 @@ def set_ferromagnetic(cell: SpglibCell, mapping: Mapping):
     return cell
 
 
-class FerromagneticSetter(WorkdirProcessor):
+class FerromagneticSetter:
     """Batch processor for VASP collinear work directories."""
 
-    def process(self, workdir, mapping: Mapping):
+    @staticmethod
+    def process(workdir, mapping: Mapping):
         """Set the cell to ferromagnetic and update INCAR/POSCAR files in a Workdir.
 
         Args:
