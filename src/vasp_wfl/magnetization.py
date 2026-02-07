@@ -4,21 +4,13 @@ from pandas import DataFrame
 from pymatgen.io.vasp import Oszicar, Outcar
 
 from .poscar import ElementCounter
-from .workdir import Workdir, WorkdirProcessor
+from .workdir import Workdir
 
 __all__ = ["MagnetizationParser"]
 
 
-class MagnetizationParser(WorkdirProcessor):
-    """Parse magnetization data from VASP output files.
-
-    Instances provide a single entrypoint `process()` which parses magnetization
-    data from a VASP workdir.
-    """
-
-    def __init__(self):
-        """Initialize the parser."""
-        super().__init__()
+class MagnetizationParser:
+    """Parse magnetization data from VASP output files."""
 
     @staticmethod
     def from_outcar(file):
@@ -232,13 +224,14 @@ class MagnetizationParser(WorkdirProcessor):
 
         return result
 
-    def process(self, workdir: Workdir, *, sum: bool = False, **kwargs) -> object:
+    @staticmethod
+    def process(workdir: Workdir, *, sum: bool = False, **kwargs) -> object:
         """Process a workdir and return parsed magnetization data.
 
         Args:
             workdir: Workdir instance.
             sum: Whether to return the sum of magnetization values. If ``True``, the
-                result is obtained by calling ``self.from_outcar(outcar_file).sum()``.
+                result is obtained by calling ``MagnetizationParser.from_outcar(outcar_file).sum()``.
             **kwargs: Ignored.
 
         Returns:
@@ -249,11 +242,11 @@ class MagnetizationParser(WorkdirProcessor):
         assert isinstance(workdir, Workdir)
         outcar_file = workdir.path / "OUTCAR"
         if outcar_file.exists():
-            df = self.from_outcar(outcar_file)
+            df = MagnetizationParser.from_outcar(outcar_file)
             if df is None:
                 return None
             return df.sum() if sum else df
         oszicar_file = workdir.path / "OSZICAR"
         if oszicar_file.exists():
-            return self.from_oszicar(oszicar_file)
+            return MagnetizationParser.from_oszicar(oszicar_file)
         return None
