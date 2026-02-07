@@ -130,10 +130,10 @@ class Workdir:
         return fnmatch(name, "WFULL????.tmp") or fnmatch(name, "W????.tmp")
 
     def is_valid(self) -> bool:
-        """Return True if the directory is a VASP working directory (contains any VASP input file)."""
+        """Return True if the directory is a VASP working directory (contains any VASP input or output file)."""
         if not self.path.is_dir():
             return False
-        return any(self.is_input(file) for file in self.files)
+        return any(self.is_input(file) or self.is_output(file) for file in self.files)
 
     @property
     def files(self):
