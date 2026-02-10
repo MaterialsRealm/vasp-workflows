@@ -71,7 +71,8 @@ class FormationEnergy:
         """Calculate formation energies per atom.
 
         Returns:
-            pd.Series: Series of formation energies indexed by the input keys.
+            pd.Series: Series of formation energies. Indexed by 'name' if available
+                in the input data, otherwise indexed by the input keys.
                 Pure elements are excluded from the results.
 
         Raises:
@@ -148,8 +149,12 @@ class FormationEnergy:
         # Calculate formation energy
         formation_energies = (df["F"] - ref_sum) / total_atoms
 
+        results = formation_energies[~is_pure]
+        if "name" in df.columns:
+            results.index = df.loc[~is_pure, "name"]
+
         # Return only for compounds
-        return formation_energies[~is_pure]
+        return results
 
 
 def merge_inner_dicts(info: dict, values: dict, key=None) -> dict:
