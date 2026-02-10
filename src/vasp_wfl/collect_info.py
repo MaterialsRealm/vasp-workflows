@@ -16,7 +16,7 @@ from .cell import get_energies, get_volume
 from .force import classify_by_force
 from .magnetization import MagnetizationParser
 from .poscar import ElementCounter
-from .workdir import WorkdirClassifier, WorkdirProcessor
+from .workdir import Workdir, WorkdirClassifier, WorkdirProcessor
 
 __all__ = ["DefaultParser", "ResultCollector"]
 
@@ -29,7 +29,7 @@ class DefaultParser:
     (magnetization per volume, energy per atom).
     """
 
-    def __call__(self, workdir):
+    def __call__(self, workdir: Workdir):
         """Process a single workdir and return parsed information.
 
         Args:
@@ -52,10 +52,10 @@ class DefaultParser:
         free_energy, internal_energy = None, None
 
         if outcar_path.exists():
-            tot_mag_outcar = MagnetizationParser.from_outcar(outcar_path)
+            tot_mag_outcar = MagnetizationParser.from_outcar(outcar_path).sum().sum()
 
         if oszicar_path.exists():
-            tot_mag_oszicar = MagnetizationParser.from_oszicar(oszicar_path)
+            tot_mag_oszicar = MagnetizationParser.from_oszicar(oszicar_path).iloc[-1]
             free_energy, internal_energy = get_energies(oszicar_path)
 
         # Determine which structure file to use, prefer CONTCAR over POSCAR.
