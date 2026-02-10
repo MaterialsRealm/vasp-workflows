@@ -43,10 +43,10 @@ class DefaultParser:
         path = workdir.path
         contcar_path = path / "CONTCAR"
         poscar_path = path / "POSCAR"
-        abs_path = str(contcar_path.resolve())
         outcar_path = path / "OUTCAR"
         oszicar_path = path / "OSZICAR"
 
+        # Parse magnetizations and energies if available.
         tot_mag_outcar = None
         tot_mag_oszicar = None
         free_energy, internal_energy = None, None
@@ -58,67 +58,68 @@ class DefaultParser:
             tot_mag_oszicar = MagnetizationParser.from_oszicar(oszicar_path)
             free_energy, internal_energy = get_energies(oszicar_path)
 
-        # Check for CONTCAR, fallback to POSCAR if missing
+        # Determine which structure file to use, prefer CONTCAR over POSCAR.
         structure_file = None
         if contcar_path.exists():
             structure_file = contcar_path
         elif poscar_path.exists():
             structure_file = poscar_path
+
+        # Base result shared across all return paths.
+        abs_path = str(path.resolve())
+        if structure_file is not None:
+            abs_path = str(structure_file.resolve())
+
+        result = {
+            "abs_path": abs_path,
+            "volume": np.nan,
+            "composition": None,
+            "tot_mag_outcar": tot_mag_outcar,
+            "tot_mag_oszicar": tot_mag_oszicar,
+            "F": free_energy,
+            "E0": internal_energy,
+            "magnetization": None,
+            "energy per atom": None,
+            "reason": None,
+        }
+
         if structure_file is None:
-            return {
-                "abs_path": abs_path,
-                "volume": np.nan,
-                "composition": None,
-                "tot_mag_outcar": tot_mag_outcar,
-                "tot_mag_oszicar": tot_mag_oszicar,
-                "F": free_energy,
-                "E0": internal_energy,
-                "magnetization": None,
-                "energy per atom": None,
-                "reason": "CONTCAR missing",
-            }
+            result["reason"] = "CONTCAR missing"
+            return result
+
         try:
             volume = get_volume(structure_file)
             composition = ElementCounter.from_file(structure_file)
         except Exception as e:
-            return {
-                "abs_path": abs_path,
-                "volume": np.nan,
-                "composition": None,
-                "tot_mag_outcar": tot_mag_outcar,
-                "tot_mag_oszicar": tot_mag_oszicar,
-                "F": free_energy,
-                "E0": internal_energy,
-                "magnetization": None,
-                "energy per atom": None,
-                "reason": f"Failed to parse structure file: {e}",
-            }
-        else:
-            # Calculate magnetization and energy per atom
-            magnetization = None
-            energy_per_atom = None
-            if tot_mag_outcar is not None and volume not in [None, 0, np.nan]:
+            result["reason"] = f"Failed to parse structure file: {e}"
+            return result
+
+        # Compute derived quantities in the success path.
+        magnetization = None
+        energy_per_atom = None
+
+        # Robust checks for volume: ensure numeric, non-zero, and not NaN.
+        if tot_mag_outcar is not None:
+            if volume != 0 and not np.isnan(volume):
                 try:
                     magnetization = tot_mag_outcar / volume
                 except Exception:
                     magnetization = None
-            if free_energy is not None and isinstance(composition, dict) and sum(composition.values()) > 0:
-                try:
-                    energy_per_atom = free_energy / sum(composition.values())
-                except Exception:
-                    energy_per_atom = None
-            return {
-                "abs_path": abs_path,
-                "volume": volume,
-                "composition": composition,
-                "tot_mag_outcar": tot_mag_outcar,
-                "tot_mag_oszicar": tot_mag_oszicar,
-                "F": free_energy,
-                "E0": internal_energy,
-                "magnetization": magnetization,
-                "energy per atom": energy_per_atom,
-                "reason": "Success",
-            }
+
+        if free_energy is not None and isinstance(composition, dict) and sum(composition.values()) > 0:
+            try:
+                energy_per_atom = free_energy / sum(composition.values())
+            except Exception:
+                energy_per_atom = None
+
+        result.update(
+            volume=volume,
+            composition=composition,
+            magnetization=magnetization,
+            **{"energy per atom": energy_per_atom},
+        )
+        result["reason"] = "Success"
+        return result
 
 
 class ResultCollector:
