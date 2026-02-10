@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-__all__ = ["Compound", "calculate_formation_energies"]
+__all__ = ["Compound", "FormationEnergy"]
 
 
 @dataclass
@@ -43,51 +43,113 @@ class Compound:
         return (energy - ref_sum) / total_atoms
 
 
-def calculate_formation_energies(info: dict) -> dict:
-    """Calculate formation energies for compounds in info.
+class FormationEnergy:
+    """Calculates formation energies from calculation results.
 
-    Args:
-        info (dict): Output from ResultCollector.collect().
-
-    Returns:
-        dict: Mapping from folder name to formation energy (per atom).
-
-    Raises:
-        ValueError: If a compound contains an element not found in reference energies.
+    This class provides functionality to calculate formation energies from a collection
+    of VASP calculation results, automatically identifying reference energies from
+    pure element calculations within the dataset.
     """
-    # Collect pure element reference energies
-    reference_energies = {}
-    for values in info.values():
-        composition = values.get("composition")
-        energy_per_atom = values.get("energy per atom")
-        if not isinstance(composition, dict) or energy_per_atom is None:
-            continue
-        if len(composition) == 1:
-            element = next(iter(composition))
-            # Use the lowest (most negative) value if multiple are found
-            if element in reference_energies:
-                reference_energies[element] = min(reference_energies[element], energy_per_atom)
-            else:
-                reference_energies[element] = energy_per_atom
-    # Calculate formation energies for compounds
-    formation_energies = {}
-    for folder, values in info.items():
-        composition = values.get("composition")
-        energy = values.get("F")
-        if not isinstance(composition, dict) or energy is None:
-            continue
-        # Skip pure elements in this round
-        if len(composition) == 1:
-            continue
-        # Check all elements are present in reference energies
-        missing_elements = set(composition).difference(reference_energies)
-        if missing_elements:
-            error_msg = f"Missing reference energies for elements: {sorted(missing_elements)} in folder '{folder}'"
-            raise ValueError(error_msg)
-        compound = Compound(composition)
-        formation_energy = compound.formation_energy(energy, reference_energies)
-        formation_energies[folder] = formation_energy
-    return formation_energies
+
+    def __init__(self, data: dict | pd.DataFrame):
+        """Initialize with calculation data.
+
+        Args:
+            data: Input data containing calculation results.
+                Can be a dictionary where keys are identifiers and values are dictionaries
+                with 'composition', 'F' (total energy), and 'energy per atom'.
+                Or a pandas DataFrame with these fields as columns.
+        """
+        if isinstance(data, dict):
+            self._df = pd.DataFrame.from_dict(data, orient="index")
+        elif isinstance(data, pd.DataFrame):
+            self._df = data.copy()
+        else:
+            raise TypeError("Input data must be a dict or pandas.DataFrame")
+
+    def calculate(self) -> pd.Series:
+        """Calculate formation energies per atom.
+
+        Returns:
+            pd.Series: Series of formation energies indexed by the input keys.
+                Pure elements are excluded from the results.
+
+        Raises:
+            ValueError: If reference energies are missing for any element in a compound.
+        """
+        # Ensure required columns exist
+        required_cols = ["composition", "F", "energy per atom"]
+        missing_cols = [c for c in required_cols if c not in self._df.columns]
+        if missing_cols:
+            return pd.Series(dtype=float)
+
+        # Filter valid rows: composition must be a dict, energies must be present
+        valid_mask = (
+            self._df["composition"].apply(lambda x: isinstance(x, dict))
+            & self._df["F"].notna()
+            & self._df["energy per atom"].notna()
+        )
+        df = self._df[valid_mask].copy()
+
+        if df.empty:
+            return pd.Series(dtype=float)
+
+        # Create stoichiometry matrix (rows=compounds, cols=elements)
+        stoichiometry = df["composition"].apply(pd.Series).fillna(0)
+
+        # Identify pure elements (rows with exactly one element type)
+        n_elements = (stoichiometry > 0).sum(axis=1)
+        is_pure = n_elements == 1
+
+        # Calculate reference energies (min energy per atom for each pure element)
+        reference_energies = {}
+        for element in stoichiometry.columns:
+            # Mask for pure 'element'
+            pure_mask = is_pure & (stoichiometry[element] > 0)
+            if pure_mask.any():
+                min_energy = df.loc[pure_mask, "energy per atom"].min()
+                reference_energies[element] = min_energy
+
+        # Check for missing reference energies for compounds
+        compounds_stoich = stoichiometry[~is_pure]
+        if not compounds_stoich.empty:
+            # Elements used in compounds
+            used_elements_mask = (compounds_stoich > 0).any()
+            used_elements = stoichiometry.columns[used_elements_mask]
+
+            missing_refs = set(used_elements) - set(reference_energies.keys())
+
+            if missing_refs:
+                # Find the first compound that uses a missing reference
+                missing_cols = list(missing_refs)
+                bad_rows = compounds_stoich[missing_cols].sum(axis=1) > 0
+
+                if bad_rows.any():
+                    first_bad_idx = bad_rows.idxmax()
+                    row_stoich = compounds_stoich.loc[first_bad_idx]
+                    missing_in_row = [c for c in missing_cols if row_stoich[c] > 0]
+
+                    raise ValueError(
+                        f"Missing reference energies for elements: {sorted(missing_in_row)} in folder '{first_bad_idx}'",
+                    )
+
+        # Calculate formation energy
+        # E_f = (E_total - sum(n_i * E_ref_i)) / sum(n_i)
+
+        # Align reference energies to stoichiometry columns
+        ref_vector = pd.Series(reference_energies).reindex(stoichiometry.columns).fillna(0)
+
+        # Calculate sum(n_i * E_ref_i)
+        ref_sum = stoichiometry.dot(ref_vector)
+
+        # Calculate sum(n_i)
+        total_atoms = stoichiometry.sum(axis=1)
+
+        # Calculate formation energy
+        formation_energies = (df["F"] - ref_sum) / total_atoms
+
+        # Return only for compounds
+        return formation_energies[~is_pure]
 
 
 def merge_inner_dicts(info: dict, values: dict, key=None) -> dict:

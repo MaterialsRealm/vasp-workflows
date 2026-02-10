@@ -223,5 +223,5 @@ class ResultCollector:
         df = df.reset_index(drop=True)
         # Expand composition dictionary into columns
         composition_df = df["composition"].apply(lambda x: x if isinstance(x, dict) else {}).apply(pd.Series)
-        df = pd.concat([df.drop(columns=["composition"]), composition_df], axis=1)
+        df = pd.concat([df, composition_df], axis=1)
         return df
