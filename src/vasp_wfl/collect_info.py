@@ -6,6 +6,7 @@ pandas DataFrame representations.
 """
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import numpy as np
@@ -15,9 +16,109 @@ from .cell import get_energies, get_volume
 from .force import classify_by_force
 from .magnetization import MagnetizationParser
 from .poscar import ElementCounter
-from .workdir import WorkdirClassifier, WorkStatus
+from .workdir import WorkdirClassifier, WorkdirProcessor
 
-__all__ = ["ResultCollector"]
+__all__ = ["DefaultParser", "ResultCollector"]
+
+
+class DefaultParser:
+    """Functor for processing a single VASP workdir and extracting structured results.
+
+    Parses magnetization from OUTCAR/OSZICAR, energy from OSZICAR, and
+    structure from CONTCAR/POSCAR. Computes derived quantities
+    (magnetization per volume, energy per atom).
+    """
+
+    def __call__(self, workdir):
+        """Process a single workdir and return parsed information.
+
+        Args:
+            workdir: Workdir instance to process.
+
+        Returns:
+            dict: Parsed information with keys: abs_path, volume, composition,
+                  tot_mag_outcar, tot_mag_oszicar, F, E0, magnetization,
+                  energy per atom, reason.
+        """
+        path = workdir.path
+        contcar_path = path / "CONTCAR"
+        poscar_path = path / "POSCAR"
+        abs_path = str(contcar_path.resolve())
+        outcar_path = path / "OUTCAR"
+        oszicar_path = path / "OSZICAR"
+
+        tot_mag_outcar = None
+        tot_mag_oszicar = None
+        free_energy, internal_energy = None, None
+
+        if outcar_path.exists():
+            tot_mag_outcar = MagnetizationParser.from_outcar(outcar_path)
+
+        if oszicar_path.exists():
+            tot_mag_oszicar = MagnetizationParser.from_oszicar(oszicar_path)
+            free_energy, internal_energy = get_energies(oszicar_path)
+
+        # Check for CONTCAR, fallback to POSCAR if missing
+        structure_file = None
+        if contcar_path.exists():
+            structure_file = contcar_path
+        elif poscar_path.exists():
+            structure_file = poscar_path
+        if structure_file is None:
+            return {
+                "abs_path": abs_path,
+                "volume": np.nan,
+                "composition": None,
+                "tot_mag_outcar": tot_mag_outcar,
+                "tot_mag_oszicar": tot_mag_oszicar,
+                "F": free_energy,
+                "E0": internal_energy,
+                "magnetization": None,
+                "energy per atom": None,
+                "reason": "CONTCAR missing",
+            }
+        try:
+            volume = get_volume(structure_file)
+            composition = ElementCounter.from_file(structure_file)
+        except Exception as e:
+            return {
+                "abs_path": abs_path,
+                "volume": np.nan,
+                "composition": None,
+                "tot_mag_outcar": tot_mag_outcar,
+                "tot_mag_oszicar": tot_mag_oszicar,
+                "F": free_energy,
+                "E0": internal_energy,
+                "magnetization": None,
+                "energy per atom": None,
+                "reason": f"Failed to parse structure file: {e}",
+            }
+        else:
+            # Calculate magnetization and energy per atom
+            magnetization = None
+            energy_per_atom = None
+            if tot_mag_outcar is not None and volume not in [None, 0, np.nan]:
+                try:
+                    magnetization = tot_mag_outcar / volume
+                except Exception:
+                    magnetization = None
+            if free_energy is not None and isinstance(composition, dict) and sum(composition.values()) > 0:
+                try:
+                    energy_per_atom = free_energy / sum(composition.values())
+                except Exception:
+                    energy_per_atom = None
+            return {
+                "abs_path": abs_path,
+                "volume": volume,
+                "composition": composition,
+                "tot_mag_outcar": tot_mag_outcar,
+                "tot_mag_oszicar": tot_mag_oszicar,
+                "F": free_energy,
+                "E0": internal_energy,
+                "magnetization": magnetization,
+                "energy per atom": energy_per_atom,
+                "reason": "Success",
+            }
 
 
 class ResultCollector:
@@ -53,105 +154,38 @@ class ResultCollector:
             self.collect()
         return self._info
 
-    def collect(self):
-        """Collect information from VASP calculation subdirectories.
+    def collect(self, parser=None, max_workers=4):
+        """Collect information from VASP calculation subdirectories in parallel.
 
         Scan subdirectories, classify calculation status, and for completed
-        runs parse structure (volume, composition), total magnetization (from
-        OUTCAR/OSZICAR), and energies. Store results in `self.info`.
+        runs process them using the provided functor. Store results in `self.info`.
+
+        Args:
+            parser: Callable accepting a Workdir and returning a dict of results.
+                       Defaults to DefaultParser().
+            max_workers: Number of worker threads for parallel processing.
+                         Defaults to 4. Use 1 for sequential processing.
 
         Example:
             collector = ResultCollector(root="./vasp_runs")
-            collector.collect()
+            collector.collect(parser=DefaultParser(), max_workers=4)
         """
+        if parser is None:
+            parser = DefaultParser()
+
         classifier = WorkdirClassifier()
         classifier.from_rootdir(self.rootdir, classify_by_force, atol=self.atol)
-        status_dict = classifier.details
-        info = {}
 
-        for folder, status in status_dict.items():
-            if status["status"] == WorkStatus.DONE:
-                contcar_path = self.rootdir / folder.path / "CONTCAR"
-                poscar_path = self.rootdir / folder.path / "POSCAR"
-                abs_path = str(contcar_path.resolve())
-                outcar_path = self.rootdir / folder.path / "OUTCAR"
-                oszicar_path = self.rootdir / folder.path / "OSZICAR"
+        # Filter for DONE directories
+        done_workdirs = classifier.list_done()
 
-                tot_mag_outcar = None
-                tot_mag_oszicar = None
-                free_energy, internal_energy = None, None
+        # Process in parallel using WorkdirProcessor
+        with ThreadPoolExecutor(max_workers=max(1, int(max_workers))) as executor:
+            pairs = WorkdirProcessor.from_dirs(done_workdirs, parser, executor=executor)
+            results = WorkdirProcessor.fetch_results(pairs, show_progress=True)
 
-                if outcar_path.exists():
-                    tot_mag_outcar = MagnetizationParser.from_outcar(outcar_path)
-
-                if oszicar_path.exists():
-                    tot_mag_oszicar = MagnetizationParser.from_oszicar(oszicar_path)
-                    free_energy, internal_energy = get_energies(oszicar_path)
-
-                # Check for CONTCAR, fallback to POSCAR if missing
-                structure_file = None
-                if contcar_path.exists():
-                    structure_file = contcar_path
-                elif poscar_path.exists():
-                    structure_file = poscar_path
-                if structure_file is None:
-                    info[folder] = {
-                        "abs_path": abs_path,
-                        "volume": np.nan,
-                        "composition": None,
-                        "tot_mag_outcar": tot_mag_outcar,
-                        "tot_mag_oszicar": tot_mag_oszicar,
-                        "F": free_energy,
-                        "E0": internal_energy,
-                        "magnetization": None,
-                        "energy per atom": None,
-                        "reason": "CONTCAR missing",
-                    }
-                    continue
-                try:
-                    volume = get_volume(structure_file)
-                    composition = ElementCounter.from_file(structure_file)
-                except Exception as e:
-                    info[folder] = {
-                        "abs_path": abs_path,
-                        "volume": np.nan,
-                        "composition": None,
-                        "tot_mag_outcar": tot_mag_outcar,
-                        "tot_mag_oszicar": tot_mag_oszicar,
-                        "F": free_energy,
-                        "E0": internal_energy,
-                        "magnetization": None,
-                        "energy per atom": None,
-                        "reason": f"Failed to parse structure file: {e}",
-                    }
-                else:
-                    # Calculate magnetization and energy per atom
-                    magnetization = None
-                    energy_per_atom = None
-                    if tot_mag_outcar is not None and volume not in [None, 0, np.nan]:
-                        try:
-                            magnetization = tot_mag_outcar / volume
-                        except Exception:
-                            magnetization = None
-                    if free_energy is not None and isinstance(composition, dict) and sum(composition.values()) > 0:
-                        try:
-                            energy_per_atom = free_energy / sum(composition.values())
-                        except Exception:
-                            energy_per_atom = None
-                    info[folder] = {
-                        "abs_path": abs_path,
-                        "volume": volume,
-                        "composition": composition,
-                        "tot_mag_outcar": tot_mag_outcar,
-                        "tot_mag_oszicar": tot_mag_oszicar,
-                        "F": free_energy,
-                        "E0": internal_energy,
-                        "magnetization": magnetization,
-                        "energy per atom": energy_per_atom,
-                        "reason": "Success",
-                    }
-        # Store into internal storage and mark collected.
-        self._info = info
+        # Aggregate results into self._info
+        self._info = {workdir: result for workdir, result in results}
         self._collected = True
 
     def to_json(self, output="info.json"):
