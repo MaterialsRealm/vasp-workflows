@@ -12,14 +12,14 @@ __all__ = ["PotcarGenerator", "PotcarValidator"]
 class PotcarGenerator:
     """Class for generating POTCAR files from structure files."""
 
-    def __init__(self, potential_dir, element_pot_map=None):
+    def __init__(self, potentials_dir, element_pot_map=None):
         """Initialize PotcarGenerator with potential directory and optional element-potential mapping.
 
         Args:
-            potential_dir: Root directory path containing potential subdirectories.
+            potentials_dir: Root directory path containing potential subdirectories.
             element_pot_map: Optional dict mapping element symbols to potential names (e.g., {"Si": "Si_GW", "O": "O_s"}).
         """
-        self.potential_dir = potential_dir
+        self.potentials_dir = potentials_dir
         self.element_pot_map = element_pot_map
 
     def locate_potcars(self, elements):
@@ -37,7 +37,7 @@ class PotcarGenerator:
         potentials = OrderedDict()
         for element in elements:
             potential_name = self.element_pot_map.get(element, element) if self.element_pot_map else element
-            file = Path(self.potential_dir) / potential_name / "POTCAR"
+            file = Path(self.potentials_dir) / potential_name / "POTCAR"
             potentials[element] = file
             if not file.is_file():
                 msg = f"POTCAR file for {element} (potential {potential_name}) not found in {file}"
