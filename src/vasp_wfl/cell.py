@@ -1,12 +1,6 @@
 from pymatgen.io.vasp import Oszicar, Poscar
 
-__all__ = ["get_cell", "get_energies", "get_volume"]
-
-
-def get_cell(filename):
-    """Get the cell from a VASP POSCAR file."""
-    poscar = Poscar.from_file(filename)
-    return poscar.structure
+__all__ = ["get_energies", "get_volume"]
 
 
 def get_volume(filename):
