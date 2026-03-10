@@ -10,7 +10,7 @@ from pymatgen.io.cif import CifParser
 from pymatgen.io.vasp import Poscar
 
 from .logger import LOGGER
-from .workdir import WorkdirFinder
+from .workdir import WorkdirFinder, Workdir
 
 __all__ = [
     "ElementCounter",
@@ -254,7 +254,7 @@ class PoscarContcarMover:
     """Class to manage POSCAR/CONTCAR file operations in one or multiple VASP workdirs."""
 
     @staticmethod
-    def update_dir(folder):
+    def update_dir(workdir: Workdir):
         """Ensure POSCAR exists in the given folder, with backup if needed.
 
         Cases:
@@ -269,27 +269,27 @@ class PoscarContcarMover:
         - If both are missing:
             - Raise FileNotFoundError
         """
-        poscar = os.path.join(folder, "POSCAR")
-        contcar = os.path.join(folder, "CONTCAR")
+        poscar = os.path.join(workdir.path, "POSCAR")
+        contcar = os.path.join(workdir.path, "CONTCAR")
         has_poscar = Path(poscar).exists()
         has_contcar = Path(contcar).exists()
         if has_poscar:
             if has_contcar:
-                existing = [f for f in os.listdir(folder) if re.match(r"POSCAR_\\d+$", f)]
+                existing = [f for f in os.listdir(workdir.path) if re.match(r"POSCAR_\\d+$", f)]
                 indices = [int(m.group(1)) for f in existing if (m := re.search(r"_(\\d+)$", f))]
                 next_index = max(indices, default=0) + 1
-                backup = os.path.join(folder, f"POSCAR_{next_index}")
-                LOGGER.info("Backing up POSCAR → %s in %s", backup, folder)
+                backup = os.path.join(workdir.path, f"POSCAR_{next_index}")
+                LOGGER.info("Backing up POSCAR → %s in %s", backup, workdir)
                 shutil.move(poscar, backup)
                 shutil.move(contcar, poscar)
-                LOGGER.info("Replaced POSCAR with CONTCAR in %s", folder)
+                LOGGER.info("Replaced POSCAR with CONTCAR in %s", workdir)
             else:
-                LOGGER.info("POSCAR exists; no update needed in %s", folder)
+                LOGGER.info("POSCAR exists; no update needed in %s", workdir)
         elif has_contcar:
             shutil.move(contcar, poscar)
-            LOGGER.info("No POSCAR found; using CONTCAR as POSCAR in %s", folder)
+            LOGGER.info("No POSCAR found; using CONTCAR as POSCAR in %s", workdir)
         else:
-            msg = f"Neither POSCAR nor CONTCAR exists in {folder}."
+            msg = f"Neither POSCAR nor CONTCAR exists in {workdir}."
             raise FileNotFoundError(msg)
 
     @classmethod
