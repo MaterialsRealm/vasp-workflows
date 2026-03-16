@@ -73,7 +73,9 @@ class FormationEnergy:
         Returns:
             pd.Series: Series of formation energies. Indexed by 'name' if available
                 in the input data, otherwise indexed by the input keys.
-                Pure elements are excluded from the results.
+                Results include pure elements. The lowest-energy pure phase for
+                each element evaluates to zero, while higher-energy elemental
+                polymorphs are measured relative to that elemental ground state.
 
         Raises:
             ValueError: If reference energies are missing for any element in a compound.
@@ -149,12 +151,10 @@ class FormationEnergy:
         # Calculate formation energy
         formation_energies = (df["F"] - ref_sum) / total_atoms
 
-        results = formation_energies[~is_pure]
         if "name" in df.columns:
-            results.index = df.loc[~is_pure, "name"]
+            formation_energies.index = df["name"]
 
-        # Return only for compounds
-        return results
+        return formation_energies
 
 
 def merge_inner_dicts(info: dict, values: dict, key=None) -> dict:
