@@ -1,4 +1,5 @@
 import os
+import pathlib
 import subprocess
 
 import click
@@ -26,15 +27,15 @@ class VaspWorkflow:
 
     def run(self, folder):
         poscar = os.path.join(self.root, folder, "POSCAR")
-        if not os.path.exists(poscar):
+        if not pathlib.Path(poscar).exists():
             print(f"POSCAR not found in {folder}, skipping.")
             return
         PoscarContcarMover.update_dir(folder)
         run_sh = os.path.join(self.root, folder, "run.sh")
-        if os.path.exists(run_sh):
+        if pathlib.Path(run_sh).exists():
             subprocess.run(["sbatch", run_sh], check=True, cwd=os.path.join(self.root, folder))
         done_txt = os.path.join(self.root, folder, "done.txt")
-        with open(done_txt, "w") as _:
+        with pathlib.Path(done_txt).open("w") as _:
             pass  # Creates an empty file
         print(f"Job submitted and done.txt touched for {folder}")
         return
@@ -50,7 +51,7 @@ class VaspWorkflow:
         # Check if all done.txt exist
         for folder in folders:
             done_txt = os.path.join(self.root, folder, "done.txt")
-            if not os.path.exists(done_txt):
+            if not pathlib.Path(done_txt).exists():
                 print(f"Warning: {done_txt} does not exist.")
         rc = ResultCollector(self.root)
         rc.collect()
