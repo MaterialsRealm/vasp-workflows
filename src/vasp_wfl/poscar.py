@@ -6,22 +6,23 @@ from collections import Counter
 from pathlib import Path
 
 from ase.io import read, write
-from pymatgen.io.cif import CifParser
+from pymatgen.io.cif import CifParser, CifWriter
 from pymatgen.io.vasp import Poscar
 
 from .logger import LOGGER
-from .workdir import WorkdirFinder, Workdir
+from .workdir import Workdir, WorkdirFinder
 
 __all__ = [
+    "AtomsExtractor",
     "ElementCounter",
     "ElementExtractor",
-    "PoscarContcarMover",
     "LatticeExtractor",
+    "PoscarContcarMover",
     "SiteExtractor",
-    "AtomsExtractor",
     "StructureParser",
     "SymmetryDetector",
     "cif_to_poscar",
+    "poscar_to_cif",
 ]
 
 
@@ -248,6 +249,41 @@ def cif_to_poscar(cif_files):
         write(poscar_path, atoms, format="vasp")
         result_cifs.append(str(cif_path))
     return result_cifs
+
+
+def poscar_to_cif(poscar_files, output_dir=None, symprec=None, significant_figures=8):
+    """Convert POSCAR/CONTCAR files to CIF files using pymatgen's CifWriter.
+
+    Args:
+        poscar_files: Iterable of POSCAR/CONTCAR file paths.
+        output_dir: Optional directory where CIF files should be written. If omitted,
+            each CIF is written next to its source POSCAR/CONTCAR.
+        symprec: Optional symmetry precision passed to CifWriter.
+        significant_figures: Number of significant figures written to the CIF.
+
+    Returns:
+        List of written CIF file paths.
+    """
+    output_path = Path(output_dir).resolve() if output_dir is not None else None
+    if output_path is not None:
+        output_path.mkdir(parents=True, exist_ok=True)
+
+    cif_paths = []
+    for poscar_file in poscar_files:
+        poscar_path = Path(poscar_file).resolve()
+        structure = StructureParser.from_poscar(poscar_path)
+        if poscar_path.name.upper() in {"POSCAR", "CONTCAR"}:
+            filename = f"{poscar_path.parent.name}.cif"
+        else:
+            filename = f"{poscar_path.stem}.cif"
+        cif_path = (output_path or poscar_path.parent) / filename
+        CifWriter(
+            structure,
+            symprec=symprec,
+            significant_figures=significant_figures,
+        ).write_file(cif_path)
+        cif_paths.append(str(cif_path))
+    return cif_paths
 
 
 class PoscarContcarMover:

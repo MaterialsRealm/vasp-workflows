@@ -6,7 +6,7 @@ import click
 from .collect_info import ResultCollector
 from .force import classify_by_force
 from .logger import LOGGER
-from .poscar import PoscarContcarMover
+from .poscar import PoscarContcarMover, poscar_to_cif
 from .workdir import WorkdirClassifier
 
 
@@ -136,3 +136,40 @@ def collect_info(filename):
     """
     workflow = VaspWorkflow()
     workflow.collect_info(filename)
+
+
+@cli.command("poscar-to-cif")
+@click.argument(
+    "poscar_files",
+    nargs=-1,
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=str),
+)
+@click.option(
+    "--output-dir",
+    type=click.Path(file_okay=False, path_type=str),
+    help="Directory where CIF files should be written. Defaults to each POSCAR's directory.",
+)
+@click.option(
+    "--symprec",
+    type=float,
+    default=None,
+    help="Optional symmetry precision passed to pymatgen.io.cif.CifWriter.",
+)
+@click.option(
+    "--significant-figures",
+    type=int,
+    default=8,
+    show_default=True,
+    help="Number of significant figures written to each CIF.",
+)
+def convert_poscar_to_cif(poscar_files, output_dir, symprec, significant_figures):
+    """Convert one or more POSCAR/CONTCAR files to CIF files."""
+    cif_paths = poscar_to_cif(
+        poscar_files,
+        output_dir=output_dir,
+        symprec=symprec,
+        significant_figures=significant_figures,
+    )
+    for cif_path in cif_paths:
+        click.echo(cif_path)
